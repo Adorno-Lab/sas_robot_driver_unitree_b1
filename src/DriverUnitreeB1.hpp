@@ -218,8 +218,8 @@ public:
                          const bool& verbosity = true,
                          const int& TIMEOUT_IN_MILLISECONDS = 2000,
                          const bool& LIE_DOWN_ROBOT_WHEN_DEINITIALIZE = true,
-                         const std::string &TARGET_IP = "192.168.123.10",
-                         const int& TARGET_PORT = 8007,
+                         const std::string &TARGET_IP = "192.168.123.220", // For low-level use "192.168.123.10",
+                         const int& TARGET_PORT = 8082,              //For low-level use 8007
                          const int& LOCAL_PORT = 8090);
 
     std::string get_target_ip() const;
