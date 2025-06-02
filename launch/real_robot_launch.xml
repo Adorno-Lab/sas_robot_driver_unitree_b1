@@ -1,0 +1,9 @@
+<launch>
+
+    <node pkg="sas_robot_driver_unitree_b1" exec="sas_robot_driver_unitree_b1_node" name="b1_1" namespace="sas_b1">
+        <param name="thread_sampling_time_sec" value="0.002" />
+        <param name="mode" value="VelocityControl" />
+        <param name="LIE_DOWN_ROBOT_WHEN_DEINITIALIZE" value="true" />
+    </node>
+
+</launch>
