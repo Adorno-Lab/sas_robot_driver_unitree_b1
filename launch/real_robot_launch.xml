@@ -4,6 +4,7 @@
         <param name="thread_sampling_time_sec" value="0.002" />
         <param name="mode" value="VelocityControl" />
         <param name="LIE_DOWN_ROBOT_WHEN_DEINITIALIZE" value="true" />
+        <param name="sigterm_timeout" value="30" />
     </node>
 
 </launch>
