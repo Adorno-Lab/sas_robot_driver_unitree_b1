@@ -37,7 +37,7 @@ buildros2
 > The robot could move with the next command. Be ready to perform an emergency stop!
 
 ```shell
-start_ROS2_drivers
+launch_ROS2_drivers
 ```
 
 ![start_ROS2_drivers](https://github.com/user-attachments/assets/c30a7867-d738-4423-970a-9a18e476b080)
