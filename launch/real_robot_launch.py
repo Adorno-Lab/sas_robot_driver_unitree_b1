@@ -7,11 +7,16 @@ connection is successful.
 """
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch.actions import DeclareLaunchArgument
 
 
 def generate_launch_description():
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+                    'sigterm_timeout',
+                    default_value='30'
+                ),
         Node(
             package='sas_robot_driver_unitree_b1',
             executable='sas_robot_driver_unitree_b1_node',
@@ -22,7 +27,6 @@ def generate_launch_description():
                 "thread_sampling_time_sec": 0.002,
                 "mode": "VelocityControl",
                 "LIE_DOWN_ROBOT_WHEN_DEINITIALIZE": True,
-                "sigterm_timeout": 30
             }]
         ),
 
