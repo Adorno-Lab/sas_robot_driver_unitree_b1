@@ -28,6 +28,10 @@ def generate_launch_description():
             '/real_b1_robot_launch.py'])
     )    
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'sigterm_timeout',
+            default_value='40'
+        ),
         real_z1_robot_launch,
         real_b1_robot_launch,
     ])
