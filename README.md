@@ -39,3 +39,11 @@ buildros2
 ```shell
 start_ROS2_drivers
 ```
+
+![start_ROS2_drivers](https://github.com/user-attachments/assets/c30a7867-d738-4423-970a-9a18e476b080)
+
+6. To stop the robot, press ctrl + c
+
+![ctrlc](https://github.com/user-attachments/assets/a206fc3e-5065-406d-9a82-2624c197b9a3)
+
+
