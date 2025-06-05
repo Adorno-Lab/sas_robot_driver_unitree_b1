@@ -6,8 +6,9 @@
 ### Docker Instructions
 
 #### Prerequisites:
-- Docker installed with sudo permisions.
+- Docker with sudo permissions.
 - Prepare the Unitree B1 robot.
+- Connect your machine to the WiFi B1 network (unitree-b1-5g-xx)
 
 1. Clone this repository
 ```shell
