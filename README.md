@@ -34,7 +34,7 @@ buildros2
 ```
 5. Start the driver
 > [!CAUTION]
-> The robot will move with the next command. Be ready to perform an emergency stop!
+> The robot could move with the next command. Be ready to perform an emergency stop!
 
 ```shell
 start_ROS2_drivers
