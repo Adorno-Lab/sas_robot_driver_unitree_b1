@@ -29,5 +29,5 @@ def generate_launch_description():
     )    
     return LaunchDescription([
         real_z1_robot_launch,
-
+        real_b1_robot_launch,
     ])
