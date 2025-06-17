@@ -48,6 +48,7 @@ struct RobotDriverUnitreeB1Configuration
 {
     std::string mode;              //const std::string mode= "PositionControl";
     bool LIE_DOWN_ROBOT_WHEN_DEINITIALIZE;  //std::string LIE_DOWN_ROBOT_WHEN_DEINITIALIZE
+    std::string robot_name;
 };
 
 class RobotDriverUnitreeB1
@@ -107,8 +108,7 @@ public:
 
     RobotDriverUnitreeB1(std::shared_ptr<Node>& node,
                          const RobotDriverUnitreeB1Configuration &configuration,
-                         std::atomic_bool* break_loops,
-                         const std::string& topic_prefix);
+                         std::atomic_bool* break_loops);
 
 
     void control_loop();

@@ -39,8 +39,7 @@ int main(int argc, char** argv)
 
         auto robot_driver = std::make_shared<sas::RobotDriverUnitreeB1>(node,
                                                                         robot_driver_unitree_b1_configuration,
-                                                                        &kill_this_process,
-                                                                        "sas_B1");
+                                                                        &kill_this_process);
 
         RCLCPP_INFO_STREAM_ONCE(node->get_logger(), "::Loading parameters from parameter server.");
 

@@ -24,8 +24,10 @@ public:
 
 };
 
-RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node, const RobotDriverUnitreeB1Configuration &configuration, std::atomic_bool *break_loops, const std::string &topic_prefix)
-    :st_break_loops_{break_loops}, topic_prefix_{topic_prefix},node_{node}, timer_period_{0.002}, print_count_{0}, clock_{0.002}
+RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
+                                           const RobotDriverUnitreeB1Configuration &configuration,
+                                           std::atomic_bool *break_loops)
+    :st_break_loops_{break_loops}, topic_prefix_{configuration.robot_name},node_{node}, timer_period_{0.002}, print_count_{0}, clock_{0.002}
 {
     impl_ = std::make_unique<RobotDriverUnitreeB1::Impl>();
 
@@ -68,7 +70,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node, const Ro
 
 
     subscriber_target_holonomic_velocities_ = node_->create_subscription<std_msgs::msg::Float64MultiArray>(
-        topic_prefix + "/set/holonomic_target_velocities",
+        topic_prefix_ + "/set/holonomic_target_velocities",
         1,
         std::bind(&RobotDriverUnitreeB1::_callback_target_holonomic_velocities, this, std::placeholders::_1)
         );
