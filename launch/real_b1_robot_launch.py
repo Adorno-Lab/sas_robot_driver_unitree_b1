@@ -26,7 +26,7 @@ def generate_launch_description():
                 "robot_name": "b1_1",
                 "thread_sampling_time_sec": 0.002,
                 "mode": "VelocityControl",
-                "LIE_DOWN_ROBOT_WHEN_DEINITIALIZE": True,
+                "LIE_DOWN_ROBOT_WHEN_DEINITIALIZE": False,
             }]
         ),
 
