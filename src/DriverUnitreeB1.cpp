@@ -283,6 +283,7 @@ void DriverUnitreeB1::_set_driver_mode(const MODE &mode, const LEVEL &level)
     switch (mode)
     {
         case MODE::None:
+            std::cerr<<"RobotDriverUnitreeB1::_set_driver_mode. Driver is set to Mode::None. "<<std::endl;
             break;
         case MODE::PositionControl:
             if (level == LEVEL::LOW)
@@ -830,27 +831,40 @@ void DriverUnitreeB1::_robot_control()
                 // This part of the code is executed when the driver is deinitialized.
                 static unsigned long long frozen_time = motiontime_;
                 const int deltatime = 3000;
-                if (motiontime_>= frozen_time and motiontime_ < frozen_time+deltatime)
+                if (motiontime_>= frozen_time && motiontime_ < frozen_time+deltatime)
                 {
-                    std::cout<<"Stoping...  "<< frozen_time+deltatime-motiontime_<<std::endl;
+                    //show_high_mode();
+                    std::cout<<"Stopping...  "<< frozen_time+deltatime-motiontime_<<std::endl;
                     _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0, 0, 0);//Stop the robot
                 }
-                else if (motiontime_>= frozen_time+deltatime and motiontime_ < frozen_time+2*deltatime)
+                else if (motiontime_>= frozen_time+deltatime && motiontime_ < frozen_time+2*deltatime)
                 {
-                    std::cout<<"POSITION_STAND_UP... "<<frozen_time + 2*deltatime -motiontime_<<std::endl;
-                    _command_in_high_level_mode(HIGH_LEVEL_MODE::POSITION_STAND_UP, 0, 0, 0); // Stand up pose
+                    //show_high_mode();
+
+
+                    if (current_high_level_mode_ == HIGH_LEVEL_MODE::DAMPING_MODE)
+                    {
+                        std::cout<<"ROBOT IS DAMPING MODE. I WILL IGNORE THE POSITION_STAND_UP... "<<frozen_time + 2*deltatime -motiontime_<<std::endl;
+                    }else
+                    {
+                        std::cout<<"POSITION_STAND_UP... "<<frozen_time + 2*deltatime -motiontime_<<std::endl;
+                        _command_in_high_level_mode(HIGH_LEVEL_MODE::POSITION_STAND_UP, 0, 0, 0); // Stand up pose
+                    }
                 }
-                else if (motiontime_>= frozen_time+2*deltatime and motiontime_ < frozen_time+ 3*deltatime and LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_)
+                else if (motiontime_>= frozen_time+2*deltatime && motiontime_ < frozen_time+ 3*deltatime && LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_)
                 {
+                    //show_high_mode();
                     std::cout<<"POSITION_STAND_DOWN... "<<frozen_time + 3*deltatime -motiontime_<<std::endl;
                     _command_in_high_level_mode(HIGH_LEVEL_MODE::POSITION_STAND_DOWN, 0, 0, 0);//Stand down pose
                 }
-                else if (motiontime_>= frozen_time+ 3*deltatime and motiontime_ < frozen_time+ 4*deltatime and LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_)
+                else if (motiontime_>= frozen_time+ 3*deltatime && motiontime_ < frozen_time+ 4*deltatime && LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_)
                 {
+                    //show_high_mode();
                     std::cout<<"DAMPING_MODE... "<<frozen_time + 4*deltatime -motiontime_<<std::endl;
                     _command_in_high_level_mode(HIGH_LEVEL_MODE::DAMPING_MODE, 0, 0, 0);//Damping mode
                 }
                 else{
+                    show_high_mode();
                     std::cout<<"IDLE"<<std::endl;
                     _command_in_high_level_mode(HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND, 0, 0, 0); //IDLE
                     the_robot_is_ready_to_deinitialize_ = true;
@@ -1002,13 +1016,13 @@ void DriverUnitreeB1::_update_IMU_data(const T &state)
                           state.imu.quaternion.at(2),
                           state.imu.quaternion.at(3)).normalize();
 
-    IMU_gyroscope_ =  DQ(state.imu.gyroscope.at(0),
-                        state.imu.gyroscope.at(1),
-                        state.imu.gyroscope.at(2));
+    IMU_gyroscope_ =  state.imu.gyroscope.at(0)*i_+
+                      state.imu.gyroscope.at(1)*j_+
+                      state.imu.gyroscope.at(2)*k_;
 
-    IMU_accelerometer_  = DQ(state.imu.accelerometer.at(0),
-                            state.imu.accelerometer.at(1),
-                            state.imu.accelerometer.at(2));
+    IMU_accelerometer_  = state.imu.accelerometer.at(0)*i_+
+                          state.imu.accelerometer.at(1)*j_+
+                          state.imu.accelerometer.at(2)*k_;
 }
 
 /**
