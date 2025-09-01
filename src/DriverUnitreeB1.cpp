@@ -283,6 +283,7 @@ void DriverUnitreeB1::_set_driver_mode(const MODE &mode, const LEVEL &level)
     switch (mode)
     {
         case MODE::None:
+            std::cerr<<"RobotDriverUnitreeB1::_set_driver_mode. Driver is set to Mode::None. "<<std::endl;
             break;
         case MODE::PositionControl:
             if (level == LEVEL::LOW)
@@ -1002,13 +1003,13 @@ void DriverUnitreeB1::_update_IMU_data(const T &state)
                           state.imu.quaternion.at(2),
                           state.imu.quaternion.at(3)).normalize();
 
-    IMU_gyroscope_ =  DQ(state.imu.gyroscope.at(0),
-                        state.imu.gyroscope.at(1),
-                        state.imu.gyroscope.at(2));
+    IMU_gyroscope_ =  state.imu.gyroscope.at(0)*i_+
+                      state.imu.gyroscope.at(1)*j_+
+                      state.imu.gyroscope.at(2)*k_;
 
-    IMU_accelerometer_  = DQ(state.imu.accelerometer.at(0),
-                            state.imu.accelerometer.at(1),
-                            state.imu.accelerometer.at(2));
+    IMU_accelerometer_  = state.imu.accelerometer.at(0)*i_+
+                          state.imu.accelerometer.at(1)*j_+
+                          state.imu.accelerometer.at(2)*k_;
 }
 
 /**
