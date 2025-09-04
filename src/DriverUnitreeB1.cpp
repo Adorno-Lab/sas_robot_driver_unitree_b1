@@ -966,10 +966,10 @@ void DriverUnitreeB1::_update_data_from_robot_state()
 
         high_level_linear_velocity_  = impl_->high_state_.velocity.at(0)*i_+
                                        impl_->high_state_.velocity.at(1)*j_;
-        high_level_angular_velocity_ = impl_->high_state_.velocity.at(2)*k_;
 
-        //high_state_.yawSpeed;
-        //high_state_.velocity;
+        // this value impl_->high_state_.velocity.at(2)*k_ is not working. Therefore, I extracted the angular
+        // velocity from yawSpeed.
+        high_level_angular_velocity_ = impl_->high_state_.yawSpeed*k_;
     }
 }
 
