@@ -1,23 +1,26 @@
-/**
-(C) Copyright 2024-2025 Adorno-Lab software developments
-
-    This file is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This file is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public License.
-    If not, see <http://www.gnu.org/licenses/>.
-
-Contributors:
-
-1. Juan Jose Quiroz Omana (juanjose.quirozomana@manchester.ac.uk)
-        - Responsible for the original implementation.
+/*
+# (C) Copyright 2024-2025 Adorno-Lab software developments
+#
+#    This file is part of sas_robot_driver_unitree_b1.
+#
+#    This is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Lesser General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This software is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public License
+#    along with this software.  If not, see <https://www.gnu.org/licenses/>.
+#
+# ################################################################
+#
+#   Author: Juan Jose Quiroz Omana, email: juanjose.quirozomana@manchester.ac.uk
+#
+# ################################################################
 */
 
 #pragma once
@@ -145,6 +148,9 @@ private:
     DQ odometry_position_{0};
     double body_height_{0};
 
+    DQ high_level_linear_velocity_{0};
+    DQ high_level_angular_velocity_{0};
+
 
     void _update_data_from_robot_state();
 
@@ -250,6 +256,8 @@ public:
     DQ get_IMU_accelerometer() const;
     DQ get_IMU_pose() const;
     VectorXd get_mobile_platform_configuration_from_IMU_pose() const;
+    DQ get_high_level_angular_velocity() const;
+    DQ get_high_level_linear_velocity() const;
 
     DQ get_odometry_position() const;
     double get_body_height() const;

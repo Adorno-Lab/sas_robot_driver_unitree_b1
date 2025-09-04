@@ -1,24 +1,26 @@
-/**
-(C) Copyright 2024-2025 Adorno-Lab software developments
-
-    This file is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This file is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public License.
-    If not, see <http://www.gnu.org/licenses/>.
-
-Contributors:
-
-1. Juan Jose Quiroz Omana (juanjose.quirozomana@manchester.ac.uk)
-        - Responsible for the original implementation.
-*/
+/*
+# (C) Copyright 2024-2025 Adorno-Lab software developments
+#
+#    This file is part of sas_robot_driver_unitree_b1.
+#
+#    This is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Lesser General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This software is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public License
+#    along with this software.  If not, see <https://www.gnu.org/licenses/>.
+#
+# ################################################################
+#
+#   Author: Juan Jose Quiroz Omana, email: juanjose.quirozomana@manchester.ac.uk
+#
+# ################################################################*/
 
 #include "DriverUnitreeB1.hpp"
 #include <unitree_legged_sdk/unitree_legged_sdk.h>
@@ -696,6 +698,26 @@ VectorXd DriverUnitreeB1::get_mobile_platform_configuration_from_IMU_pose() cons
 
 
 /**
+ * @brief DriverUnitreeB1::get_high_level_angular_velocity returns the angular velocities when in High level mode
+ * @return The angular velocity (yaw_speed*k_)
+ */
+
+DQ DriverUnitreeB1::get_high_level_angular_velocity() const
+{
+    return high_level_angular_velocity_;
+}
+
+/**
+ * @brief DriverUnitreeB1::get_high_level_linear_velocity returns the linear velocities when in High level mode
+ * @return The planar joint velocties (x_dot*i_ + y_dot*j_)
+ */
+DQ DriverUnitreeB1::get_high_level_linear_velocity() const
+{
+    return high_level_linear_velocity_;
+}
+
+
+/**
  * @brief DriverUnitreeB1::set_high_level_forward_speed sets the target forward speed of the holonomic mobile platform.
  * @param forward_speed The desired forward speed. This method is used when the driver is set in high-level.
  */
@@ -941,6 +963,10 @@ void DriverUnitreeB1::_update_data_from_robot_state()
                              impl_->high_state_.position.at(2)*k_;
         body_height_ = impl_->high_state_.bodyHeight;
         current_high_level_mode_ = high_level_mode_map_inv_.at(impl_->high_state_.mode);
+
+        high_level_linear_velocity_  = impl_->high_state_.velocity.at(0)*i_+
+                                       impl_->high_state_.velocity.at(1)*j_;
+        high_level_angular_velocity_ = impl_->high_state_.velocity.at(2)*k_;
 
         //high_state_.yawSpeed;
         //high_state_.velocity;
