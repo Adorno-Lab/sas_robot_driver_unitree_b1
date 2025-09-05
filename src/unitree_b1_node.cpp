@@ -1,3 +1,28 @@
+/*
+# (C) Copyright 2024-2025 Adorno-Lab software developments
+#
+#    This file is part of sas_robot_driver_unitree_b1.
+#
+#    This is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Lesser General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This software is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public License
+#    along with this software.  If not, see <https://www.gnu.org/licenses/>.
+#
+# ################################################################
+#
+#   Author: Juan Jose Quiroz Omana, email: juanjose.quirozomana@manchester.ac.uk
+#   Based on https://ros2-tutorial.readthedocs.io/en/latest/cpp/cpp_node.html
+#
+# ################################################################*/
+
 #include "unitree_b1_node.hpp"
 
 #include "DriverUnitreeB1.hpp"
@@ -64,6 +89,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
 
     publisher_IMU_state_ = node_->create_publisher<sensor_msgs::msg::Imu>(topic_prefix_ + "/get/IMU_state", 1);
     publisher_pose_state_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(topic_prefix_ + "/get/pose_state", 1);
+    publisher_high_level_velocities_state_ = node_->create_publisher<geometry_msgs::msg::TwistStamped>(topic_prefix_ + "/get/twist", 1);
 
     publisher_battery_state_ = node_->create_publisher<sensor_msgs::msg::BatteryState>(topic_prefix_ + "/get/battery_state", 1);
 
@@ -196,6 +222,25 @@ void RobotDriverUnitreeB1::_read_imu_state_and_publish()
     publisher_pose_state_->publish(ros_msg_pose);
 }
 
+void RobotDriverUnitreeB1::_read_twist_state_and_publish()
+{
+    geometry_msgs::msg::TwistStamped ros_msg_twist;
+    ros_msg_twist.header.stamp = node_->get_clock()->now();
+
+    VectorXd vec_angular_velocity = impl_->unitree_b1_driver_->get_high_level_angular_velocity().vec3();
+    ros_msg_twist.twist.angular.x = vec_angular_velocity(0);
+    ros_msg_twist.twist.angular.y = vec_angular_velocity(1);
+    ros_msg_twist.twist.angular.z = vec_angular_velocity(2);
+
+    VectorXd vec_acceleration = impl_->unitree_b1_driver_->get_high_level_linear_velocity().vec3();
+    ros_msg_twist.twist.linear.x = vec_acceleration(0);
+    ros_msg_twist.twist.linear.y = vec_acceleration(1);
+    ros_msg_twist.twist.linear.z = vec_acceleration(2);
+
+    publisher_high_level_velocities_state_->publish(ros_msg_twist);
+
+}
+
 void RobotDriverUnitreeB1::_read_battery_state()
 {
     sensor_msgs::msg::BatteryState ros_msg_battery;
@@ -242,6 +287,7 @@ void RobotDriverUnitreeB1::control_loop()
             _read_joint_states_and_publish();
             _read_imu_state_and_publish();
             _read_battery_state();
+            _read_twist_state_and_publish();
             _set_target_velocities_from_subscriber();
 
             rclcpp::spin_some(node_);

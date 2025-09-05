@@ -1,20 +1,20 @@
 /*
-# Copyright (c) 2024 Juan Jose Quiroz Omana
+# (C) Copyright 2024-2025 Adorno-Lab software developments
 #
 #    This file is part of sas_robot_driver_unitree_b1.
 #
-#    sas_robot_driver_kuka is free software: you can redistribute it and/or modify
+#    This is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Lesser General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
 #    (at your option) any later version.
 #
-#    sas_robot_driver_kuka is distributed in the hope that it will be useful,
+#    This software is distributed in the hope that it will be useful,
 #    but WITHOUT ANY WARRANTY; without even the implied warranty of
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU Lesser General Public License for more details.
 #
 #    You should have received a copy of the GNU Lesser General Public License
-#    along with sas_robot_driver_kuka.  If not, see <https://www.gnu.org/licenses/>.
+#    along with this software.  If not, see <https://www.gnu.org/licenses/>.
 #
 # ################################################################
 #
@@ -29,6 +29,7 @@
 #include <thread>
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
 #include <std_msgs/msg/int32_multi_array.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
@@ -79,6 +80,7 @@ private:
     Publisher<sensor_msgs::msg::Imu>::SharedPtr publisher_IMU_state_;
     Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_pose_state_;
     Publisher<sensor_msgs::msg::BatteryState>::SharedPtr publisher_battery_state_;
+    Publisher<geometry_msgs::msg::TwistStamped>:: SharedPtr publisher_high_level_velocities_state_;
 
     Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscriber_target_holonomic_velocities_;
 
@@ -96,6 +98,7 @@ protected:
 
     void _read_joint_states_and_publish();
     void _read_imu_state_and_publish();
+    void _read_twist_state_and_publish();
     void _read_battery_state();
     bool _should_shutdown() const;
     void _set_target_velocities_from_subscriber();
