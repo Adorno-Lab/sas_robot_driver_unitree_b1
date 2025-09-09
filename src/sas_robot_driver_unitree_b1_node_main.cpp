@@ -37,6 +37,8 @@ int main(int argc, char** argv)
         sas::get_ros_parameter(node,"mode", robot_driver_unitree_b1_configuration.mode);
         sas::get_ros_parameter(node,"LIE_DOWN_ROBOT_WHEN_DEINITIALIZE", robot_driver_unitree_b1_configuration.LIE_DOWN_ROBOT_WHEN_DEINITIALIZE);
         sas::get_ros_parameter(node,"robot_name", robot_driver_unitree_b1_configuration.robot_name);
+        sas::get_ros_parameter(node,"ROBOT_IP", robot_driver_unitree_b1_configuration.ROBOT_IP);
+        sas::get_ros_parameter(node,"ROBOT_PORT", robot_driver_unitree_b1_configuration.ROBOT_PORT);
 
         auto robot_driver = std::make_shared<sas::RobotDriverUnitreeB1>(node,
                                                                         robot_driver_unitree_b1_configuration,

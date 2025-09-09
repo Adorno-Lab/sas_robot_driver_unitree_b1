@@ -27,6 +27,8 @@ def generate_launch_description():
                 "thread_sampling_time_sec": 0.002,
                 "mode": "VelocityControl",
                 "LIE_DOWN_ROBOT_WHEN_DEINITIALIZE": False,
+                "ROBOT_IP": "192.168.123.220",
+                "ROBOT_PORT": 8082
             }]
         ),
 

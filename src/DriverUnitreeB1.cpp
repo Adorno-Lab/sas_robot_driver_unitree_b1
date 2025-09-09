@@ -147,6 +147,8 @@ DriverUnitreeB1::DriverUnitreeB1(std::atomic_bool *st_break_loops,
 
     ip_ = TARGET_IP;
     port_ = TARGET_PORT;
+    std::cerr<<"ROBOT_IP: "<<ip_<<std::endl;
+    std::cerr<<"ROBOT_PORT: "<<port_<<std::endl;
 
 
 }

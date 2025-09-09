@@ -49,15 +49,20 @@ struct RobotDriverUnitreeB1Configuration
 {
     std::string mode;              //const std::string mode= "PositionControl";
     bool LIE_DOWN_ROBOT_WHEN_DEINITIALIZE;  //std::string LIE_DOWN_ROBOT_WHEN_DEINITIALIZE
+    std::string ROBOT_IP; //"192.168.123.220",  // Target IP   //192.168.123.10 for low-level mode
+    int ROBOT_PORT; //    8082,              // Target port  //8007 for low-level mode
     std::string robot_name;
 };
+
+
+
 
 class RobotDriverUnitreeB1
 {
 protected:
     std::atomic_bool* st_break_loops_;
     std::string topic_prefix_;
-
+    RobotDriverUnitreeB1Configuration configuration_;
     std::shared_ptr<rclcpp::Node> node_;
 
 private:

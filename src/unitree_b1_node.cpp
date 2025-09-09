@@ -52,7 +52,7 @@ public:
 RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
                                            const RobotDriverUnitreeB1Configuration &configuration,
                                            std::atomic_bool *break_loops)
-    :st_break_loops_{break_loops}, topic_prefix_{configuration.robot_name},node_{node}, timer_period_{0.002}, print_count_{0}, clock_{0.002}
+    :st_break_loops_{break_loops}, topic_prefix_{configuration.robot_name}, configuration_{configuration},node_{node}, timer_period_{0.002}, print_count_{0}, clock_{0.002}
 {
     impl_ = std::make_unique<RobotDriverUnitreeB1::Impl>();
 
@@ -70,9 +70,9 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
                                                                   DriverUnitreeB1::LEVEL::HIGH,       // Level mode
                                                                   true,   //verbosity
                                                                   2000,   // TIMEOUT in ms
-                                                                  configuration.LIE_DOWN_ROBOT_WHEN_DEINITIALIZE, // LIE DOWN ROBOT WHEN DEINITIALIZE
-                                                                  "192.168.123.220",  // Target IP   //192.168.123.10 for low-level mode
-                                                                  8082,              // Target port  //8007 for low-level mode
+                                                                  configuration_.LIE_DOWN_ROBOT_WHEN_DEINITIALIZE, // LIE DOWN ROBOT WHEN DEINITIALIZE
+                                                                  configuration_.ROBOT_IP,  // Target IP   //192.168.123.10 for low-level mode
+                                                                  configuration_.ROBOT_PORT,// Target port  //8007 for low-level mode
                                                                   8090);
 
 
@@ -89,7 +89,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
 
     publisher_IMU_state_ = node_->create_publisher<sensor_msgs::msg::Imu>(topic_prefix_ + "/get/IMU_state", 1);
     publisher_pose_state_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(topic_prefix_ + "/get/pose_state", 1);
-    publisher_high_level_velocities_state_ = node_->create_publisher<geometry_msgs::msg::TwistStamped>(topic_prefix_ + "/get/twist", 1);
+    publisher_high_level_velocities_state_ = node_->create_publisher<geometry_msgs::msg::TwistStamped>(topic_prefix_ + "/get/twist_state", 1);
 
     publisher_battery_state_ = node_->create_publisher<sensor_msgs::msg::BatteryState>(topic_prefix_ + "/get/battery_state", 1);
 
