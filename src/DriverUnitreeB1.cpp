@@ -659,26 +659,23 @@ double DriverUnitreeB1::get_body_height() const
 }
 
 /**
- * @brief DriverUnitreeB1::get_IMU_pose returns the estimated robot pose.
+ * @brief DriverUnitreeB1::get_IMU_pose returns the estimated robot pose at the IMU body frame.
+ *                         This value is computed using the odometry data (subjected to drift), the body height,
+ *                         and the IMU orientation.
  * @return
  */
 DQ DriverUnitreeB1::get_IMU_pose() const
 {
-    DQ r = IMU_orientation_;
+    const DQ& r = IMU_orientation_;
 
-    DQ p = 0.5*k_; // for debug
-    //DQ hoffset = body_height_*k_ + 0*k_;
-    if (level_ == LEVEL::HIGH)
-    {
-        auto auxp = odometry_position_;
-        auto vec_auxp = odometry_position_.vec4();
-        auto x = vec_auxp(1);
-        auto y = vec_auxp(2);
-        auto z = body_height_ + 0.025;
-        p = x*i_ + y*j_ + z*k_;
-    }
-    else
-        p = 0.5*k_;
+    // This value is used to match the the height in the CoppeliaSim model
+    const double hoffset = 0.025;
+    const VectorXd vec_auxp = odometry_position_.vec4();
+    const double x = vec_auxp(1);
+    const double y = vec_auxp(2);
+    const double z = body_height_ + hoffset;
+    const DQ p = x*i_ + y*j_ + z*k_;
+
     return (r + E_*0.5*p*r).normalize();
 }
 
