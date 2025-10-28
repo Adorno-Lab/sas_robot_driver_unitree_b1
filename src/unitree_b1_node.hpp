@@ -112,7 +112,7 @@ private:
     void _watchdog_start(const std::chrono::nanoseconds& period);
 
 
-    std::mutex mutex_last_trigger_;
+    std::mutex mutex_watchdog_;
 
 
     //Implementation details that depend on FRI source files.

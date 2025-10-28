@@ -267,6 +267,7 @@ void RobotDriverUnitreeB1::_set_target_velocities_from_subscriber()
 
 void RobotDriverUnitreeB1::_callback_watchdog_trigger_state(const sas_msgs::msg::WatchdogTrigger& msg)
 {
+    std::scoped_lock lock(mutex_watchdog_);
     watchdog_enabled_ = true;
     watchdog_trigger_status_ = msg.status;
     last_trigger_ = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>(
@@ -355,7 +356,7 @@ void RobotDriverUnitreeB1::_watchdog_thread_function()
         double elapsed_time;
         bool wstatus;
         {
-            std::scoped_lock lock(mutex_last_trigger_);
+            std::scoped_lock lock(mutex_watchdog_);
             elapsed_time = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - last_trigger_).count();
             wstatus = watchdog_status_;
         }
