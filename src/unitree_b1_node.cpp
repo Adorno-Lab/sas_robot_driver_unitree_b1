@@ -292,7 +292,7 @@ void RobotDriverUnitreeB1::control_loop()
 
 
 
-        while(not _should_shutdown())
+        while(!_should_shutdown())
         {
             clock_.update_and_sleep();
             rclcpp::spin_some(node_);
@@ -326,7 +326,11 @@ void RobotDriverUnitreeB1::control_loop()
     }
     catch(const std::exception& e)
     {
-        std::cerr<<"::Exception caught::" << e.what() <<std::endl;
+        RCLCPP_ERROR_STREAM(node_->get_logger(),"::Exception caught::" << e.what());
+    }
+    catch(...)
+    {
+        RCLCPP_ERROR_STREAM(node_->get_logger(),"::Unexpected error or exception caught");
     }
 }
 
@@ -350,27 +354,50 @@ void RobotDriverUnitreeB1::_watchdog_thread_function()
 {
     const double& period =  watchdog_clock_->get_desired_thread_sampling_time_sec();
     watchdog_clock_->init();
+
     while(!_should_shutdown())
     {
-        std::chrono::system_clock::time_point current_time = std::chrono::system_clock::now();
-        double elapsed_time;
-        bool wstatus;
-        {
-            std::scoped_lock lock(mutex_watchdog_);
-            elapsed_time = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - last_trigger_).count();
-            wstatus = watchdog_trigger_status_;
-        }
-        if (elapsed_time > period)
-            throw std::runtime_error(
-                std::string("RobotDriverUnitreeB1:: The watchdog signal was lost! ") +
-                "The elapsed time was " + std::to_string(elapsed_time) +
-                " but the period is: " + std::to_string(period)
-                );
+        try {
+            std::chrono::system_clock::time_point current_time = std::chrono::system_clock::now();
+            double elapsed_time;
+            bool wstatus;
+            {
+                std::scoped_lock lock(mutex_watchdog_);
+                elapsed_time = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - last_trigger_).count();
+                wstatus = watchdog_trigger_status_;
+            }
+            if (elapsed_time > period)
+            {
 
-        if(!wstatus)
-            throw std::runtime_error("RobotDriverUnitreeB1:: The watchdog status is false!");
-        watchdog_clock_->update_and_sleep();
+                throw std::runtime_error(
+                    std::string("RobotDriverUnitreeB1:: The watchdog signal was lost! ") +
+                    "The elapsed time was " + std::to_string(elapsed_time) +
+                    " but the period is: " + std::to_string(period)
+                    );
+                *st_break_loops_ = true; // Signal shutdown
+            }
+
+
+            if(!wstatus)
+            {
+                throw std::runtime_error("RobotDriverUnitreeB1:: The watchdog status is false!");
+                *st_break_loops_ = true; // Signal shutdown
+            }
+            watchdog_clock_->update_and_sleep();
+        }
+        catch(const std::exception& e) {
+            RCLCPP_ERROR_STREAM(node_->get_logger(), e.what());
+            *st_break_loops_ = true; // Signal shutdown
+            break;
+        }
+        catch(...) {
+            RCLCPP_ERROR_STREAM(node_->get_logger(), "Unknown watchdog exception");
+            *st_break_loops_ = true; // Signal shutdown
+            break;
+        }
     }
+
+
 }
 
 
