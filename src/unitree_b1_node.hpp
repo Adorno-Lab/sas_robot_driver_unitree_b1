@@ -107,7 +107,6 @@ private:
     std::unique_ptr<sas::Clock> watchdog_clock_;
     std::unique_ptr<std::thread> watchdog_thread_;
     std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> last_trigger_;
-    bool watchdog_status_;
     void _watchdog_thread_function();
     void _watchdog_start(const std::chrono::nanoseconds& period);
 

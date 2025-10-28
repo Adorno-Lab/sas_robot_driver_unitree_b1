@@ -358,7 +358,7 @@ void RobotDriverUnitreeB1::_watchdog_thread_function()
         {
             std::scoped_lock lock(mutex_watchdog_);
             elapsed_time = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - last_trigger_).count();
-            wstatus = watchdog_status_;
+            wstatus = watchdog_trigger_status_;
         }
         if (elapsed_time > period)
             throw std::runtime_error(
