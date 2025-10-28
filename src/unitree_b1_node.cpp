@@ -28,6 +28,7 @@
 #include "DriverUnitreeB1.hpp"
 #include <iostream>
 #include <memory>
+#include <sas_common/sas_common.hpp>
 #include <sas_core/eigen3_std_conversions.hpp>
 
 //using std::placeholders::_1;
@@ -52,7 +53,12 @@ public:
 RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
                                            const RobotDriverUnitreeB1Configuration &configuration,
                                            std::atomic_bool *break_loops)
-    :st_break_loops_{break_loops}, topic_prefix_{configuration.robot_name}, configuration_{configuration},node_{node}, timer_period_{0.002}, print_count_{0}, clock_{0.002}
+    :st_break_loops_{break_loops},
+    topic_prefix_{configuration.robot_name},
+    configuration_{configuration},node_{node},
+    timer_period_{0.002}, print_count_{0},
+    clock_{0.002},
+    watchdog_started_{false}
 {
     impl_ = std::make_unique<RobotDriverUnitreeB1::Impl>();
 
@@ -101,22 +107,12 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
         std::bind(&RobotDriverUnitreeB1::_callback_target_holonomic_velocities, this, std::placeholders::_1)
         );
 
-    //joint_limits_ = configuration.joint_limits;
 
-    //(Smart) pointers at the one thing that it doesn't matter much if they are not initialized in the member initializer list
-
-    //and this is a bit more readable.
-
-
-    /*
-    timer_ = create_wall_timer(
-
-        std::chrono::milliseconds(long(timer_period_*1e3)),
-
-        std::bind(&RobotDriverUnitreeB1::_timer_callback, this) //Note here the use of std::bind to build a single argument
-
+    subscriber_watchdog_trigger_ = node_->create_subscription<sas_msgs::msg::WatchdogTrigger>(
+        topic_prefix_ + "/set/watchdog_trigger", 1,
+        std::bind(&RobotDriverUnitreeB1::_callback_watchdog_trigger_state, this, std::placeholders::_1)
         );
-*/
+
 
 }
 
@@ -269,6 +265,20 @@ void RobotDriverUnitreeB1::_set_target_velocities_from_subscriber()
     }
 }
 
+void RobotDriverUnitreeB1::_callback_watchdog_trigger_state(const sas_msgs::msg::WatchdogTrigger& msg)
+{
+    watchdog_enabled_ = true;
+    watchdog_trigger_status_ = msg.status;
+    last_trigger_ = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>(
+        std::chrono::seconds(msg.header.stamp.sec) + std::chrono::nanoseconds(msg.header.stamp.nanosec)
+        );
+}
+
+bool RobotDriverUnitreeB1::is_watchdog_enabled() const
+{
+    return watchdog_enabled_;
+}
+
 
 
 void RobotDriverUnitreeB1::control_loop()
@@ -278,6 +288,8 @@ void RobotDriverUnitreeB1::control_loop()
         clock_.init();
         impl_->unitree_b1_driver_->connect();
         impl_->unitree_b1_driver_->initialize();
+
+
 
         while(not _should_shutdown())
         {
@@ -289,6 +301,23 @@ void RobotDriverUnitreeB1::control_loop()
             _read_battery_state();
             _read_twist_state_and_publish();
             _set_target_velocities_from_subscriber();
+
+            if (is_watchdog_enabled())
+            {
+                if (!watchdog_started_)
+                {   // This portion of code is executed only one time
+                    // Initialize the watchdog.
+                    double watchdog_period;
+                    // If the "watchdog_period_in_seconds" is not defined, we use a default value.
+                    get_ros_optional_parameter(node_, "watchdog_period_in_seconds", watchdog_period, 1.0);
+                    RCLCPP_INFO_STREAM(node_->get_logger(), "Watchdog initialized with a " << watchdog_period << " second period");
+                    const std::chrono::nanoseconds period = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        std::chrono::duration<double>(watchdog_period));
+                    watchdog_started_ = true;
+                    _watchdog_start(period);
+                }
+
+            }
 
             rclcpp::spin_some(node_);
         }
@@ -306,27 +335,41 @@ void RobotDriverUnitreeB1::_callback_target_holonomic_velocities(const std_msgs:
     new_target_velocities_available_ = true;
 }
 
-void RobotDriverUnitreeB1::_timer_callback()
+void RobotDriverUnitreeB1::_watchdog_start(const std::chrono::nanoseconds& period)
 {
-/*
-    RCLCPP_INFO_STREAM(get_logger(),
+    if (!watchdog_clock_)
+        watchdog_clock_ = std::make_unique<sas::Clock>(std::chrono::duration_cast<std::chrono::duration<double>>(period).count());
 
-                       std::string("Printed ") +
+    if (!watchdog_thread_)
+        watchdog_thread_ = std::make_unique<std::thread>(&RobotDriverUnitreeB1::_watchdog_thread_function, this);
+}
 
-                           std::to_string(print_count_) +
 
-                           std::string(" times.")
-
-                       );
-
-    print_count_++;
-    if (!st_break_loops_)
+void RobotDriverUnitreeB1::_watchdog_thread_function()
+{
+    const double& period =  watchdog_clock_->get_desired_thread_sampling_time_sec();
+    watchdog_clock_->init();
+    while(!_should_shutdown())
     {
-        //timer_->cancel();
-        std::cout<<"Kill timer"<<std::endl;
-    }
-*/
+        std::chrono::system_clock::time_point current_time = std::chrono::system_clock::now();
+        double elapsed_time;
+        bool wstatus;
+        {
+            std::scoped_lock lock(mutex_last_trigger_);
+            elapsed_time = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - last_trigger_).count();
+            wstatus = watchdog_status_;
+        }
+        if (elapsed_time > period)
+            throw std::runtime_error(
+                std::string("RobotDriverUnitreeB1:: The watchdog signal was lost! ") +
+                "The elapsed time was " + std::to_string(elapsed_time) +
+                " but the period is: " + std::to_string(period)
+                );
 
+        if(!wstatus)
+            throw std::runtime_error("RobotDriverUnitreeB1:: The watchdog status is false!");
+        watchdog_clock_->update_and_sleep();
+    }
 }
 
 
