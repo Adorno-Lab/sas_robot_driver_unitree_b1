@@ -106,9 +106,11 @@ private:
     bool watchdog_started_;
     std::unique_ptr<sas::Clock> watchdog_clock_;
     std::unique_ptr<std::thread> watchdog_thread_;
-    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> last_trigger_;
+    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> time_point_from_the_client_;
+    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> time_point_from_the_server_;
     void _watchdog_thread_function();
     void _watchdog_start(const std::chrono::nanoseconds& period);
+    double max_acceptable_delay_ = 0.1;
 
 
 
@@ -129,7 +131,7 @@ protected:
     bool _should_shutdown() const;
     void _set_target_velocities_from_subscriber();
 
-
+    void _watchdog_set_maximum_acceptable_delay(const double& max_acceptable_delay);
 
 public:
 

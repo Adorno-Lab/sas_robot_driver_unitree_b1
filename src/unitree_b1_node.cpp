@@ -265,14 +265,25 @@ void RobotDriverUnitreeB1::_set_target_velocities_from_subscriber()
     }
 }
 
+void RobotDriverUnitreeB1::_watchdog_set_maximum_acceptable_delay(const double &max_acceptable_delay)
+{
+    max_acceptable_delay_ = max_acceptable_delay;
+}
+
 void RobotDriverUnitreeB1::_callback_watchdog_trigger_state(const sas_msgs::msg::WatchdogTrigger& msg)
 {
     std::scoped_lock lock(mutex_watchdog_);
+
     watchdog_enabled_ = true;
     watchdog_trigger_status_ = msg.status;
-    last_trigger_ = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>(
+
+    //This time point corresponds to the moment the signal was sent, as recorded by the client computer's clock.
+    time_point_from_the_client_ = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>(
         std::chrono::seconds(msg.header.stamp.sec) + std::chrono::nanoseconds(msg.header.stamp.nanosec)
         );
+
+    //This time point corresponds to the moment the sigal was received, as recorded by the server computer's clock.
+    time_point_from_the_server_ = std::chrono::system_clock::now();
 }
 
 bool RobotDriverUnitreeB1::is_watchdog_enabled() const
@@ -309,13 +320,30 @@ void RobotDriverUnitreeB1::control_loop()
                 {   // This portion of code is executed only one time
                     // Initialize the watchdog.
                     double watchdog_period;
+                    double watchdog_maximum_acceptable_delay;
+
                     // If the "watchdog_period_in_seconds" is not defined, we use a default value.
                     get_ros_optional_parameter(node_, "watchdog_period_in_seconds", watchdog_period, 1.0);
-                    RCLCPP_INFO_STREAM(node_->get_logger(), "Watchdog initialized with a " << watchdog_period << " second period");
+                    RCLCPP_INFO_STREAM(node_->get_logger(), "::Watchdog initialized with a " << watchdog_period << " second period");
+                    // If the elapsed time between the triggers is higher than the watchdog period, an exception is thrown
+
+
+                    // If the "watchdog_maximum_acceptable_delay" is not defined, we use a default value.
+                    get_ros_optional_parameter(node_, "watchdog_maximum_acceptable_delay", watchdog_maximum_acceptable_delay, 1.0);
+                    RCLCPP_INFO_STREAM(node_->get_logger(), "::Watchdog initialized with a maximum acceptable delay of " << watchdog_maximum_acceptable_delay<< " seconds");
+                    // If the time difference between the time point of signal that was sent (using the client computer's clock) and the time point
+                    // when the watchdog signal was received (using the computer's clock on which the server is running) is higher than the watchdog_maximum_acceptable_delay,
+                    // an exception is thrown by the robot driver.
+
+
                     const std::chrono::nanoseconds period = std::chrono::duration_cast<std::chrono::nanoseconds>(
                         std::chrono::duration<double>(watchdog_period));
                     watchdog_started_ = true;
+                    _watchdog_set_maximum_acceptable_delay(watchdog_maximum_acceptable_delay);
+
+                    //-----------------------------------------------------------------------------------------/
                     _watchdog_start(period);
+                    //--- For developers: Do not put more code after this point---//
                 }
 
             }
@@ -340,6 +368,10 @@ void RobotDriverUnitreeB1::_callback_target_holonomic_velocities(const std_msgs:
     new_target_velocities_available_ = true;
 }
 
+/**
+ * @brief RobotDriverUnitreeB1::watchdog_start starts the watchdog thread
+ * @param period The period of time.
+ */
 void RobotDriverUnitreeB1::_watchdog_start(const std::chrono::nanoseconds& period)
 {
     if (!watchdog_clock_)
@@ -349,7 +381,10 @@ void RobotDriverUnitreeB1::_watchdog_start(const std::chrono::nanoseconds& perio
         watchdog_thread_ = std::make_unique<std::thread>(&RobotDriverUnitreeB1::_watchdog_thread_function, this);
 }
 
-
+/**
+ * @brief RobotDriverUnitreeB1::_watchdog_thread_function throws an exception if the elapsed time since the last watchdog time point from the server
+ *        exceeds the specified period.
+ */
 void RobotDriverUnitreeB1::_watchdog_thread_function()
 {
     const double& period =  watchdog_clock_->get_desired_thread_sampling_time_sec();
@@ -360,19 +395,33 @@ void RobotDriverUnitreeB1::_watchdog_thread_function()
         try {
             std::chrono::system_clock::time_point current_time = std::chrono::system_clock::now();
             double elapsed_time;
+            double elapsed_time_same_clock;
             bool wstatus;
             {
                 std::scoped_lock lock(mutex_watchdog_);
-                elapsed_time = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - last_trigger_).count();
+                elapsed_time = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - time_point_from_the_client_).count();
+                elapsed_time_same_clock = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - time_point_from_the_server_).count();
                 wstatus = watchdog_trigger_status_;
             }
-            if (elapsed_time > period)
-            {
 
+            double clock_difference = std::abs(elapsed_time - elapsed_time_same_clock);
+            if (clock_difference > max_acceptable_delay_)
+            {
+                throw std::runtime_error(
+                    std::string("RobotDriverUnitreeB1:: The watchdog signal is delayed, or the clocks between the client and server are out of synch! ") +
+                    "Watchdog signal delay: " + std::to_string(1000*clock_difference) +"ms."
+                    );
+                *st_break_loops_ = true; // Signal shutdown
+            }
+
+
+            if (elapsed_time_same_clock  > period)
+            {
                 throw std::runtime_error(
                     std::string("RobotDriverUnitreeB1:: The watchdog signal was lost! ") +
-                    "The elapsed time was " + std::to_string(elapsed_time) +
-                    " but the period is: " + std::to_string(period)
+                    "The elapsed time was " + std::to_string(elapsed_time_same_clock) +
+                    " seconds, but the period is " + std::to_string(period) + ". There was a watchdog signal delay of " + std::to_string(1000*clock_difference) +
+                    "ms."
                     );
                 *st_break_loops_ = true; // Signal shutdown
             }
