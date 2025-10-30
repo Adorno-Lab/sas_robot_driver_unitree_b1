@@ -36,7 +36,8 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/battery_state.hpp>
 #include <sas_core/sas_clock.hpp>
-
+#include <sas_msgs/msg/watchdog_trigger.hpp>
+#include <optional>
 
 //using namespace Eigen;
 
@@ -52,6 +53,7 @@ struct RobotDriverUnitreeB1Configuration
     std::string ROBOT_IP; //"192.168.123.220",  // Target IP   //192.168.123.10 for low-level mode
     int ROBOT_PORT; //    8082,              // Target port  //8007 for low-level mode
     std::string robot_name;
+    double watchdog_period_in_seconds;
 };
 
 
@@ -71,6 +73,7 @@ private:
     int print_count_;
 
     sas::Clock clock_;
+
 
     //also equivalent to rclcpp::TimerBase::SharedPtr
     std::shared_ptr<rclcpp::TimerBase> timer_;
@@ -93,7 +96,27 @@ private:
     void _callback_target_holonomic_velocities(const std_msgs::msg::Float64MultiArray& msg);
     bool new_target_velocities_available_{false};
 
-    void _timer_callback();
+
+    //------Watchdog-----------------------------------------------------------------
+    Subscription<sas_msgs::msg::WatchdogTrigger>::SharedPtr subscriber_watchdog_trigger_;
+    void _callback_watchdog_trigger_state(const sas_msgs::msg::WatchdogTrigger& msg);
+    bool watchdog_trigger_status_;
+    bool watchdog_enabled_;
+    bool is_watchdog_enabled() const;
+    bool watchdog_started_;
+    std::unique_ptr<sas::Clock> watchdog_clock_;
+    std::unique_ptr<std::thread> watchdog_thread_;
+    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> time_point_from_the_client_;
+    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> time_point_from_the_server_;
+    void _watchdog_thread_function();
+    void _watchdog_start(const std::chrono::nanoseconds& period);
+    double max_acceptable_delay_ = 0.1;
+    double watchdog_period_;
+
+
+
+    std::mutex mutex_watchdog_;
+
 
     //Implementation details that depend on FRI source files.
     class Impl;
@@ -108,6 +131,8 @@ protected:
     bool _should_shutdown() const;
     void _set_target_velocities_from_subscriber();
 
+    void _watchdog_set_maximum_acceptable_delay(const double& max_acceptable_delay);
+
 public:
 
     RobotDriverUnitreeB1(const RobotDriverUnitreeB1&)=delete;
@@ -117,7 +142,6 @@ public:
     RobotDriverUnitreeB1(std::shared_ptr<Node>& node,
                          const RobotDriverUnitreeB1Configuration &configuration,
                          std::atomic_bool* break_loops);
-
 
     void control_loop();
 
