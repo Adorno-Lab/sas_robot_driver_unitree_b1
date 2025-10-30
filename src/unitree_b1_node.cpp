@@ -375,7 +375,12 @@ void RobotDriverUnitreeB1::_callback_target_holonomic_velocities(const std_msgs:
 void RobotDriverUnitreeB1::_watchdog_start(const std::chrono::nanoseconds& period)
 {
     if (!watchdog_clock_)
-        watchdog_clock_ = std::make_unique<sas::Clock>(std::chrono::duration_cast<std::chrono::duration<double>>(period).count());
+    {
+
+        watchdog_period_ =  std::chrono::duration_cast<std::chrono::duration<double>>(period).count();
+        // If the watchdog period is 1 second, the watchdog thread control is going to check five times per second.
+        watchdog_clock_ = std::make_unique<sas::Clock>(watchdog_period_/5.0);
+    }
 
     if (!watchdog_thread_)
         watchdog_thread_ = std::make_unique<std::thread>(&RobotDriverUnitreeB1::_watchdog_thread_function, this);
@@ -387,7 +392,8 @@ void RobotDriverUnitreeB1::_watchdog_start(const std::chrono::nanoseconds& perio
  */
 void RobotDriverUnitreeB1::_watchdog_thread_function()
 {
-    const double& period =  watchdog_clock_->get_desired_thread_sampling_time_sec();
+
+    const double thread_freq =1.0/watchdog_clock_->get_desired_thread_sampling_time_sec();
     watchdog_clock_->init();
 
     while(!_should_shutdown())
@@ -415,13 +421,14 @@ void RobotDriverUnitreeB1::_watchdog_thread_function()
             }
 
 
-            if (elapsed_time_same_clock  > period)
+            if (elapsed_time_same_clock  >  watchdog_period_ )
             {
                 throw std::runtime_error(
                     std::string("RobotDriverUnitreeB1:: The watchdog signal was lost! ") +
                     "The elapsed time was " + std::to_string(elapsed_time_same_clock) +
-                    " seconds, but the period is " + std::to_string(period) + ". There was a watchdog signal delay of " + std::to_string(1000*clock_difference) +
-                    "ms."
+                    " seconds, but the period is " + std::to_string( watchdog_period_ ) + ". There was a watchdog signal delay of " + std::to_string(1000*clock_difference) +
+                    "ms." +
+                    "The watchdog thread runs at " + std::to_string(thread_freq)+ "Hz."
                     );
                 *st_break_loops_ = true; // Signal shutdown
             }

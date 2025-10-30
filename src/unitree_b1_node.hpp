@@ -111,7 +111,7 @@ private:
     void _watchdog_thread_function();
     void _watchdog_start(const std::chrono::nanoseconds& period);
     double max_acceptable_delay_ = 0.1;
-
+    double watchdog_period_;
 
 
 
