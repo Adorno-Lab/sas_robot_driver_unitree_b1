@@ -459,6 +459,10 @@ void RobotDriverUnitreeB1::_watchdog_thread_function()
 
 RobotDriverUnitreeB1::~RobotDriverUnitreeB1()
 {
+    if (watchdog_thread_ && watchdog_thread_->joinable()) {
+        *st_break_loops_ = true; // Signal shutdown;  //To force the thread to shutdown if it hasn't already done so
+        watchdog_thread_->join();
+    }
     impl_->unitree_b1_driver_->deinitialize();
     impl_->unitree_b1_driver_->disconnect();
 }
