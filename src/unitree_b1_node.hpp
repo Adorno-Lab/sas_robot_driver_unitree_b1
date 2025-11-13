@@ -37,7 +37,6 @@
 #include <sensor_msgs/msg/battery_state.hpp>
 #include <sas_core/sas_clock.hpp>
 #include <sas_msgs/msg/watchdog_trigger.hpp>
-#include <optional>
 
 //using namespace Eigen;
 
@@ -54,6 +53,7 @@ struct RobotDriverUnitreeB1Configuration
     int ROBOT_PORT; //    8082,              // Target port  //8007 for low-level mode
     std::string robot_name;
     double watchdog_period_in_seconds;
+    bool FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO; // to handle this https://github.com/Adorno-Lab/sas_robot_driver_unitree_b1/issues/4
 };
 
 

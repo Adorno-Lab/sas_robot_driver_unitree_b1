@@ -53,10 +53,12 @@ public:
 RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
                                            const RobotDriverUnitreeB1Configuration &configuration,
                                            std::atomic_bool *break_loops)
-    :st_break_loops_{break_loops},
+    :
+    st_break_loops_{break_loops},
     topic_prefix_{configuration.robot_name},
-    configuration_{configuration},node_{node},
-    timer_period_{0.002}, print_count_{0},
+    configuration_{configuration},
+    node_{node}, timer_period_{0.002},
+    print_count_{0},
     clock_{0.002},
     watchdog_started_{false}
 {
@@ -70,6 +72,11 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
         mode = DriverUnitreeB1::MODE::None;
     }
 
+    std::vector<DriverUnitreeB1::CUSTOM_FLAGS> custom_flags;
+    if (configuration_.FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO)
+        custom_flags.push_back(DriverUnitreeB1::CUSTOM_FLAGS::FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO);
+
+
     // I need to use the parameters of the configuration structure!
     impl_->unitree_b1_driver_ = std::make_shared<DriverUnitreeB1>(break_loops,
                                                                   mode, // Driver mode
@@ -79,7 +86,8 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
                                                                   configuration_.LIE_DOWN_ROBOT_WHEN_DEINITIALIZE, // LIE DOWN ROBOT WHEN DEINITIALIZE
                                                                   configuration_.ROBOT_IP,  // Target IP   //192.168.123.10 for low-level mode
                                                                   configuration_.ROBOT_PORT,// Target port  //8007 for low-level mode
-                                                                  8090);
+                                                                  8090,
+                                                                  custom_flags);
 
 
 

@@ -103,6 +103,14 @@ public:
     LEVEL level_;
     enum class BRANCH{FR, FL, RR, RL};
 
+
+public:
+    enum class CUSTOM_FLAGS
+    {
+        FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO,
+    };
+    std::vector<CUSTOM_FLAGS> custom_flags_;
+
 private:
 
     class Impl;
@@ -212,6 +220,9 @@ private:
     void _initialize_high_cmd_variable();
 
 
+    static bool are_approximately_equal(const double& a, const double& b, const double& epsilon = 1e-6) ;
+    bool status_velocities_{false};
+
 
 
 public:
@@ -219,14 +230,15 @@ public:
     DriverUnitreeB1(const DriverUnitreeB1&) = delete;
     DriverUnitreeB1& operator= (const DriverUnitreeB1&) = delete;
     DriverUnitreeB1(std::atomic_bool* st_break_loops,
-                         const MODE& mode = MODE::None,
-                         const LEVEL& level = LEVEL::HIGH,
-                         const bool& verbosity = true,
-                         const int& TIMEOUT_IN_MILLISECONDS = 2000,
-                         const bool& LIE_DOWN_ROBOT_WHEN_DEINITIALIZE = true,
-                         const std::string &TARGET_IP = "192.168.123.220", // For low-level use "192.168.123.10",
-                         const int& TARGET_PORT = 8082,              //For low-level use 8007
-                         const int& LOCAL_PORT = 8090);
+                    const MODE& mode = MODE::None,
+                    const LEVEL& level = LEVEL::HIGH,
+                    const bool& verbosity = true,
+                    const int& TIMEOUT_IN_MILLISECONDS = 2000,
+                    const bool& LIE_DOWN_ROBOT_WHEN_DEINITIALIZE = true,
+                    const std::string &TARGET_IP = "192.168.123.220", // For low-level use "192.168.123.10",
+                    const int& TARGET_PORT = 8082,              //For low-level use 8007
+                    const int& LOCAL_PORT = 8090,
+                    const std::vector<CUSTOM_FLAGS>& custom_flags = std::vector<CUSTOM_FLAGS>{});
 
     std::string get_target_ip() const;
     int get_target_port() const;

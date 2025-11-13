@@ -39,6 +39,8 @@ int main(int argc, char** argv)
         sas::get_ros_parameter(node,"robot_name", robot_driver_unitree_b1_configuration.robot_name);
         sas::get_ros_parameter(node,"ROBOT_IP", robot_driver_unitree_b1_configuration.ROBOT_IP);
         sas::get_ros_parameter(node,"ROBOT_PORT", robot_driver_unitree_b1_configuration.ROBOT_PORT);
+        sas::get_ros_optional_parameter(node, "FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO",
+                                        robot_driver_unitree_b1_configuration.FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO, false);
 
         double watchdog_period;
         double watchdog_maximum_acceptable_delay;

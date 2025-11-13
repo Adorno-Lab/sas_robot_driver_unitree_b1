@@ -22,6 +22,8 @@ def generate_launch_description():
             executable='sas_robot_driver_unitree_b1_node',
             name='b1_1',
             namespace="sas_b1",
+            #output='screen',  
+            #emulate_tty=True,  
             parameters=[{
                 "robot_name": "b1_1",
                 "thread_sampling_time_sec": 0.002,
@@ -30,7 +32,8 @@ def generate_launch_description():
                 "ROBOT_IP": "192.168.8.170", #192.168.123.220
                 "ROBOT_PORT": 8082,
                 "watchdog_period_in_seconds": 2.0,
-                "watchdog_maximum_acceptable_delay": 1e10
+                "watchdog_maximum_acceptable_delay": 1e10,
+                "FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO": False, # In the white robot, this is required to stop the robot when the velociites are zero.
             }]
         ),
 
