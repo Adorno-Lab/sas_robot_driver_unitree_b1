@@ -37,7 +37,6 @@
 #include <sensor_msgs/msg/battery_state.hpp>
 #include <sas_core/sas_clock.hpp>
 #include <sas_msgs/msg/watchdog_trigger.hpp>
-#include <optional>
 
 //using namespace Eigen;
 
