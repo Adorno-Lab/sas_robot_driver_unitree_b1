@@ -26,6 +26,12 @@
 #include <unitree_legged_sdk/unitree_legged_sdk.h>
 
 
+bool flag_in_custom_flags(const DriverUnitreeB1::CUSTOM_FLAGS& flag,
+                          const std::vector<DriverUnitreeB1::CUSTOM_FLAGS>& flags)
+{
+    return std::count(flags.begin(), flags.end(), flag) > 0;
+}
+
 class DriverUnitreeB1::Impl
 {
 public:
@@ -71,6 +77,7 @@ public:
  *
  * @param TARGET_PORT The default port of the B1 robot.
  * @param LOCAL_PORT The communication port of the PC that is running the code.
+ * @param custom_flags Additional flags to modify the robot behavior.
  *
  *
  *
@@ -110,8 +117,10 @@ DriverUnitreeB1::DriverUnitreeB1(std::atomic_bool *st_break_loops,
                                            const bool &LIE_DOWN_ROBOT_WHEN_DEINITIALIZE,
                                            const string &TARGET_IP,
                                            const int &TARGET_PORT,
-                                           const int &LOCAL_PORT):
+                                           const int &LOCAL_PORT,
+                                           const std::vector<CUSTOM_FLAGS>& custom_flags):
     st_break_loops_{st_break_loops},
+    custom_flags_{custom_flags},
     ip_{TARGET_IP},
     port_{TARGET_PORT},
     verbosity_{verbosity},
@@ -339,6 +348,18 @@ void DriverUnitreeB1::_initialize_high_cmd_variable()
     impl_->high_cmd_.velocity[1] = 0.0f;
     impl_->high_cmd_.yawSpeed = 0.0f;
     impl_->high_cmd_.reserve = 0;
+}
+
+/**
+ * @brief DriverUnitreeB1::are_approximately_equal returns true if two doubles are approximately equal
+ * @param a A double
+ * @param b A double
+ * @param epsilon the tolerance
+ * @return returns true if two doubles are approximately equal. False otherwise
+ */
+bool DriverUnitreeB1::are_approximately_equal(const double &a, const double &b, const double &epsilon)
+{
+    return std::abs(a - b) < epsilon;
 }
 
 /**
@@ -846,7 +867,24 @@ void DriverUnitreeB1::_robot_control()
         { //HIGH LEVEL
             if (!finish_motion_to_deinitialize_)
             {
-                _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, high_level_forward_speed_, high_level_side_speed_, high_level_yaw_speed_);
+                bool all_speeds_are_zero = are_approximately_equal(high_level_forward_speed_, 0.0) &&
+                                           are_approximately_equal(high_level_side_speed_, 0.0) &&
+                                           are_approximately_equal(high_level_yaw_speed_, 0.0);
+                bool force_stand_mode = flag_in_custom_flags(CUSTOM_FLAGS::FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO, custom_flags_);
+                if (all_speeds_are_zero)
+                {
+                    if (force_stand_mode)
+                        _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCE_STAND, 0.0, 0.0, 0.0);
+                    else
+                        _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0,0.0,0.0);
+                }
+                else
+                {
+                    _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, high_level_forward_speed_,
+                                                                                          high_level_side_speed_,
+                                                                                          high_level_yaw_speed_);
+                }
+
 
             }else{
                 // This part of the code is executed when the driver is deinitialized.
@@ -1060,4 +1098,6 @@ void DriverUnitreeB1::_update_battery_data(const T &state)
     // Update the battery status
     state_of_charge_ = state.bms.SOC;
 }
+
+
 
