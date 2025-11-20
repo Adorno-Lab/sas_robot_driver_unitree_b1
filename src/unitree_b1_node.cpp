@@ -275,7 +275,7 @@ void RobotDriverUnitreeB1::_set_target_velocities_from_subscriber()
 
 void RobotDriverUnitreeB1::_watchdog_set_maximum_acceptable_delay(const double &max_acceptable_delay)
 {
-    max_acceptable_delay_ = max_acceptable_delay;
+    watchdog_maximum_acceptable_delay_in_seconds_ = max_acceptable_delay;
 }
 
 void RobotDriverUnitreeB1::_callback_watchdog_trigger_state(const sas_msgs::msg::WatchdogTrigger& msg)
@@ -284,6 +284,8 @@ void RobotDriverUnitreeB1::_callback_watchdog_trigger_state(const sas_msgs::msg:
 
     watchdog_enabled_ = true;
     watchdog_trigger_status_ = msg.status;
+    watchdog_period_in_seconds_ = msg.period_in_seconds;
+    watchdog_maximum_acceptable_delay_in_seconds_ = msg.maximum_acceptable_delay_in_seconds;
 
     //This time point corresponds to the moment the signal was sent, as recorded by the client computer's clock.
     time_point_from_the_client_ = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>(
@@ -327,33 +329,34 @@ void RobotDriverUnitreeB1::control_loop()
                 if (!watchdog_started_)
                 {   // This portion of code is executed only one time
                     // Initialize the watchdog.
-                    double watchdog_period;
-                    double watchdog_maximum_acceptable_delay;
+                    //double watchdog_period;
+                    //double watchdog_maximum_acceptable_delay;
 
                     // If the "watchdog_period_in_seconds" is not defined, we use a default value.
-                    get_ros_optional_parameter(node_, "watchdog_period_in_seconds", watchdog_period, 1.0);
-                    RCLCPP_INFO_STREAM(node_->get_logger(), "::Watchdog initialized with a " << watchdog_period << " second period");
+                    //get_ros_optional_parameter(node_, "watchdog_period_in_seconds", watchdog_period, 1.0);
+
+                    //RCLCPP_INFO_STREAM(node_->get_logger(), "::Watchdog initialized with a " << watchdog_period << " second period");
+                    RCLCPP_INFO_STREAM(node_->get_logger(), "::Watchdog initialized with a " << watchdog_period_in_seconds_  << " second period");
                     // If the elapsed time between the triggers is higher than the watchdog period, an exception is thrown
 
 
                     // If the "watchdog_maximum_acceptable_delay" is not defined, we use a default value.
-                    get_ros_optional_parameter(node_, "watchdog_maximum_acceptable_delay", watchdog_maximum_acceptable_delay, 1.0);
-                    RCLCPP_INFO_STREAM(node_->get_logger(), "::Watchdog initialized with a maximum acceptable delay of " << watchdog_maximum_acceptable_delay<< " seconds");
+                    //get_ros_optional_parameter(node_, "watchdog_maximum_acceptable_delay", watchdog_maximum_acceptable_delay_, 1.0);
+                    RCLCPP_INFO_STREAM(node_->get_logger(), "::Watchdog initialized with a maximum acceptable delay of " << watchdog_maximum_acceptable_delay_in_seconds_<< " seconds");
                     // If the time difference between the time point of signal that was sent (using the client computer's clock) and the time point
                     // when the watchdog signal was received (using the computer's clock on which the server is running) is higher than the watchdog_maximum_acceptable_delay,
                     // an exception is thrown by the robot driver.
 
 
                     const std::chrono::nanoseconds period = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                        std::chrono::duration<double>(watchdog_period));
+                        std::chrono::duration<double>(watchdog_period_in_seconds_));
                     watchdog_started_ = true;
-                    _watchdog_set_maximum_acceptable_delay(watchdog_maximum_acceptable_delay);
+                    _watchdog_set_maximum_acceptable_delay(watchdog_maximum_acceptable_delay_in_seconds_);
 
                     //-----------------------------------------------------------------------------------------/
                     _watchdog_start(period);
                     //--- For developers: Do not put more code after this point---//
                 }
-
             }
 
             rclcpp::spin_some(node_);
@@ -419,7 +422,7 @@ void RobotDriverUnitreeB1::_watchdog_thread_function()
             }
 
             double clock_difference = std::abs(elapsed_time - elapsed_time_same_clock);
-            if (clock_difference > max_acceptable_delay_)
+            if (clock_difference > watchdog_maximum_acceptable_delay_in_seconds_)
             {
                 throw std::runtime_error(
                     std::string("RobotDriverUnitreeB1:: The watchdog signal is delayed, or the clocks between the client and server are out of synch! ") +

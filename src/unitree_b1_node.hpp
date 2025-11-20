@@ -110,8 +110,10 @@ private:
     std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> time_point_from_the_server_;
     void _watchdog_thread_function();
     void _watchdog_start(const std::chrono::nanoseconds& period);
-    double max_acceptable_delay_ = 0.1;
+    //double max_acceptable_delay_ = 0.1;
     double watchdog_period_;
+    double watchdog_period_in_seconds_;
+    double watchdog_maximum_acceptable_delay_in_seconds_;
 
 
 
