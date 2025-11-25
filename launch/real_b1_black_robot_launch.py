@@ -31,8 +31,6 @@ def generate_launch_description():
                 "LIE_DOWN_ROBOT_WHEN_DEINITIALIZE": False,
                 "ROBOT_IP": "192.168.8.226", #192.168.123.220
                 "ROBOT_PORT": 8082,
-                "watchdog_period_in_seconds": 2.0,
-                "watchdog_maximum_acceptable_delay": 1e10,
                 "FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO": True, # In the black robot, this is required to stop the robot when the velociites are zero.
             }]
         ),

@@ -60,6 +60,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
     node_{node}, timer_period_{0.002},
     print_count_{0},
     clock_{0.002},
+    shutdown_signal_{false},
     watchdog_started_{false}
 {
     impl_ = std::make_unique<RobotDriverUnitreeB1::Impl>();
@@ -119,6 +120,11 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
     subscriber_watchdog_trigger_ = node_->create_subscription<sas_msgs::msg::WatchdogTrigger>(
         topic_prefix_ + "/set/watchdog_trigger", 1,
         std::bind(&RobotDriverUnitreeB1::_callback_watchdog_trigger_state, this, std::placeholders::_1)
+        );
+
+    subscriber_shutdown_signal_ = node->create_subscription<std_msgs::msg::Bool>(
+        topic_prefix_ + "/set/shutdown", 1,
+        std::bind(&RobotDriverUnitreeB1::_callback_shutdown_signal_,  this, std::placeholders::_1)
         );
 
 
@@ -318,11 +324,18 @@ void RobotDriverUnitreeB1::control_loop()
             clock_.update_and_sleep();
             rclcpp::spin_some(node_);
 
+            if (shutdown_signal_)
+            {
+                throw std::runtime_error("The shutdown signal was received!");
+                *st_break_loops_ = true; // Signal shutdown
+            }
+
             _read_joint_states_and_publish();
             _read_imu_state_and_publish();
             _read_battery_state();
             _read_twist_state_and_publish();
             _set_target_velocities_from_subscriber();
+
 
             if (is_watchdog_enabled())
             {
@@ -377,6 +390,14 @@ void RobotDriverUnitreeB1::_callback_target_holonomic_velocities(const std_msgs:
 {
     target_holonomic_velocities_  = std_vector_double_to_vectorxd(msg.data);
     new_target_velocities_available_ = true;
+}
+
+void RobotDriverUnitreeB1::_callback_shutdown_signal_(const std_msgs::msg::Bool &msg)
+{
+    // Only update this member if it was never set to true.
+    // In other words, the driver is shut down if at least one received message is true.
+    if (shutdown_signal_ == false)
+        shutdown_signal_ = msg.data;
 }
 
 /**
