@@ -37,6 +37,7 @@
 #include <sensor_msgs/msg/battery_state.hpp>
 #include <sas_core/sas_clock.hpp>
 #include <sas_msgs/msg/watchdog_trigger.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 //using namespace Eigen;
 
@@ -52,7 +53,7 @@ struct RobotDriverUnitreeB1Configuration
     std::string ROBOT_IP; //"192.168.123.220",  // Target IP   //192.168.123.10 for low-level mode
     int ROBOT_PORT; //    8082,              // Target port  //8007 for low-level mode
     std::string robot_name;
-    double watchdog_period_in_seconds;
+    //double watchdog_period_in_seconds;
     bool FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO; // to handle this https://github.com/Adorno-Lab/sas_robot_driver_unitree_b1/issues/4
 };
 
@@ -96,6 +97,9 @@ private:
     void _callback_target_holonomic_velocities(const std_msgs::msg::Float64MultiArray& msg);
     bool new_target_velocities_available_{false};
 
+    Subscription<std_msgs::msg::Bool>::SharedPtr subscriber_shutdown_signal_;
+    void _callback_shutdown_signal_(const std_msgs::msg::Bool& msg);
+    bool shutdown_signal_;
 
     //------Watchdog-----------------------------------------------------------------
     Subscription<sas_msgs::msg::WatchdogTrigger>::SharedPtr subscriber_watchdog_trigger_;

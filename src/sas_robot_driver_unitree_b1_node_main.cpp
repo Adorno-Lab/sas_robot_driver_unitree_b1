@@ -42,17 +42,6 @@ int main(int argc, char** argv)
         sas::get_ros_optional_parameter(node, "FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO",
                                         robot_driver_unitree_b1_configuration.FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO, false);
 
-        double watchdog_period;
-        double watchdog_maximum_acceptable_delay;
-
-        sas::get_ros_optional_parameter(node, "watchdog_period_in_seconds", watchdog_period, 0.4);
-        RCLCPP_INFO_STREAM(node->get_logger(), "::Watchdog initialized with a " << watchdog_period << " second period");
-        // If the elapsed time between the triggers is higher than the watchdog period, an exception is thrown
-
-
-        // If the "watchdog_maximum_acceptable_delay" is not defined, we use a default value.
-        sas::get_ros_optional_parameter(node, "watchdog_maximum_acceptable_delay", watchdog_maximum_acceptable_delay, 1.2);
-        RCLCPP_INFO_STREAM(node->get_logger(), "::Watchdog initialized with a maximum acceptable delay of " << watchdog_maximum_acceptable_delay<< " seconds");
 
         auto robot_driver = std::make_shared<sas::RobotDriverUnitreeB1>(node,
                                                                         robot_driver_unitree_b1_configuration,
