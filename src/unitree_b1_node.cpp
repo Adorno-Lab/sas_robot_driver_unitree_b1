@@ -122,7 +122,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
         std::bind(&RobotDriverUnitreeB1::_callback_watchdog_trigger_state, this, std::placeholders::_1)
         );
 
-    subscriber_shutdown_signal_ = node->create_subscription<std_msgs::msg::Bool>(
+    subscriber_shutdown_signal_ = node->create_subscription<sas_msgs::msg::Bool>(
         topic_prefix_ + "/set/shutdown", 1,
         std::bind(&RobotDriverUnitreeB1::_callback_shutdown_signal_,  this, std::placeholders::_1)
         );
@@ -392,7 +392,7 @@ void RobotDriverUnitreeB1::_callback_target_holonomic_velocities(const std_msgs:
     new_target_velocities_available_ = true;
 }
 
-void RobotDriverUnitreeB1::_callback_shutdown_signal_(const std_msgs::msg::Bool &msg)
+void RobotDriverUnitreeB1::_callback_shutdown_signal_(const sas_msgs::msg::Bool &msg)
 {
     // Only update this member if it was never set to true.
     // In other words, the driver is shut down if at least one received message is true.

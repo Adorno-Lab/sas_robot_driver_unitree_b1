@@ -37,7 +37,7 @@
 #include <sensor_msgs/msg/battery_state.hpp>
 #include <sas_core/sas_clock.hpp>
 #include <sas_msgs/msg/watchdog_trigger.hpp>
-#include <std_msgs/msg/bool.hpp>
+#include <sas_msgs/msg/bool.hpp>
 
 //using namespace Eigen;
 
@@ -97,8 +97,8 @@ private:
     void _callback_target_holonomic_velocities(const std_msgs::msg::Float64MultiArray& msg);
     bool new_target_velocities_available_{false};
 
-    Subscription<std_msgs::msg::Bool>::SharedPtr subscriber_shutdown_signal_;
-    void _callback_shutdown_signal_(const std_msgs::msg::Bool& msg);
+    Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_shutdown_signal_;
+    void _callback_shutdown_signal_(const sas_msgs::msg::Bool& msg);
     bool shutdown_signal_;
 
     //------Watchdog-----------------------------------------------------------------
