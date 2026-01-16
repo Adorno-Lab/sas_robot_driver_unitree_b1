@@ -101,6 +101,10 @@ private:
     void _callback_shutdown_signal_(const sas_msgs::msg::Bool& msg);
     bool shutdown_signal_;
 
+
+    Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_emergency_stop_device_signal_;
+    void _callback_emergency_stop_device_signa_(const sas_msgs::msg::Bool& msg);
+
     //------Watchdog-----------------------------------------------------------------
     Subscription<sas_msgs::msg::WatchdogTrigger>::SharedPtr subscriber_watchdog_trigger_;
     void _callback_watchdog_trigger_state(const sas_msgs::msg::WatchdogTrigger& msg);
