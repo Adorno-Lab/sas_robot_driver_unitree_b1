@@ -85,8 +85,11 @@ private:
     void _command_in_high_level_mode(const HIGH_LEVEL_MODE& high_level_mode,
                                      const double& forward_vel,
                                      const double& side_vel,
-                                     const double& yaw_speed);
-
+                                     const double& yaw_speed,
+                                     const double& roll_angle,
+                                     const double& pitch_angle,
+                                     const double& yaw_angle,
+                                     const double& body_height);
 
 
 //void _set_high_level_mode(const HIGH_LEVEL_MODE& high_level_mode);
@@ -284,6 +287,8 @@ public:
     void set_high_level_speed(const double& forward_speed = 0,
                               const double& side_speed = 0,
                               const double& yaw_speed = 0);
+
+
 
     double get_high_level_forward_speed_reference() const;
     double get_high_level_yaw_speed_reference() const;

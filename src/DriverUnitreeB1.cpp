@@ -951,32 +951,91 @@ void DriverUnitreeB1::_robot_control()
 }
 
 /**
- * @brief DriverUnitreeB1::_command_in_high_level_mode sets the high_cmd_ struct with the desired target velocities and sents to the robot.
- * @param high_level_mode The high level mode. This can be
- *       IDLE_DEFAULT_STAND,
- *       FORCE_STAND,
- *       TARGET_VELOCITY_WALKING,
- *       PATH_MODE_WALKING,
- *       POSITION_STAND_DOWN,
- *       POSITION_STAND_UP,
- *       DAMPING_MODE,
- *       RECOVERY_STAND
+ * @brief DriverUnitreeB1::_command_in_high_level_mode sets the high_cmd_ struct with the desired target values and sends to the robot.
  *
+ * This method configures the Unitree B1 robot's high-level command structure based on the specified mode,
+ * performs input validation, and transmits the command via UDP to the robot.
  *
- * @param forward_vel The target forward velocity.
- * @param side_vel The garget side velocity.
- * @param yaw_speed The target yaw velocity.
+ * @param high_level_mode The high level mode. This can be:
+ *       - IDLE_DEFAULT_STAND (0): Idle/default stand mode (currently unsupported)
+ *       - FORCE_STAND (1): Force stand mode controlled by body height and Euler angles
+ *       - TARGET_VELOCITY_WALKING (2): Target velocity walking mode controlled by linear and angular velocities
+ *       - PATH_MODE_WALKING (4): Path mode walking (reserved, currently unsupported)
+ *       - POSITION_STAND_DOWN (5): Position stand down (currently unsupported)
+ *       - POSITION_STAND_UP (6): Position stand up (currently unsupported)
+ *       - DAMPING_MODE (7): Damping mode (currently unsupported)
+ *       - RECOVERY_STAND (9): Recovery stand (currently unsupported)
+ *
+ * @param forward_vel Target forward linear velocity in m/s. Valid range depends on robot state.
+ *                    Used only in TARGET_VELOCITY_WALKING mode.
+ *
+ * @param side_vel Target lateral (sideways) linear velocity in m/s. Valid range depends on robot state.
+ *                 Used only in TARGET_VELOCITY_WALKING mode.
+ *
+ * @param yaw_speed Target yaw (rotation) angular velocity in rad/s. Valid range depends on robot state.
+ *                  Used only in TARGET_VELOCITY_WALKING mode.
+ *
+ * @param roll_angle Target roll angle in radians. Valid range: [-0.3, 0.3].
+ *                   Used only in FORCE_STAND mode.
+ *
+ * @param pitch_angle Target pitch angle in radians. Valid range: [-0.3, 0.3].
+ *                    Used only in FORCE_STAND mode.
+ *
+ * @param yaw_angle Target yaw angle in radians. Valid range: [-0.6, 0.6].
+ *                  Used only in FORCE_STAND mode.
+ *
+ * @param body_height Target body height from ground in meters. Valid range depends on robot configuration.
+ *                    Used only in FORCE_STAND mode.
+ *
+ * @throws std::out_of_range If any FORCE_STAND mode Euler angle exceeds its valid range.
+ * @throws std::runtime_error If an unsupported high_level_mode is provided.
+ *
+ * @note Only FORCE_STAND and TARGET_VELOCITY_WALKING modes are currently implemented.
+ *       All other modes will throw a std::runtime_error.
+ * @note The high_cmd_ structure is always zero-initialized before populating to prevent stale data.
+ * @note The command is sent immediately via UDP after population.
  */
 void DriverUnitreeB1::_command_in_high_level_mode(const HIGH_LEVEL_MODE& high_level_mode,
-                                                       const double& forward_vel,
-                                                       const double &side_vel,
-                                                       const double& yaw_speed)
+                                                  const double& forward_vel,
+                                                  const double &side_vel,
+                                                  const double& yaw_speed,
+                                                  const double &roll_angle,
+                                                  const double &pitch_angle,
+                                                  const double &yaw_angle,
+                                                  const double &body_height)
 {
     _initialize_high_cmd_variable();
     impl_->high_cmd_.mode = high_level_mode_map_.at(high_level_mode);
-    impl_->high_cmd_.velocity[0] = forward_vel;
-    impl_->high_cmd_.velocity[1] = side_vel;
-    impl_->high_cmd_.yawSpeed = yaw_speed;
+
+    switch(high_level_mode) {
+    case HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING:
+    {
+        impl_->high_cmd_.velocity[0] = forward_vel;
+        impl_->high_cmd_.velocity[1] = side_vel;
+        impl_->high_cmd_.yawSpeed = yaw_speed;
+        break;
+    }
+
+    case HIGH_LEVEL_MODE::FORCE_STAND:
+    {
+        // (unit: rad), roll pitch yaw in stand mode,
+        // roll range:[-0.3, 0.3],
+        // pitch range:[-0.3, 0.3],
+        // yaw range:[-0.6, 0.6]
+        if (std::abs(roll_angle) > 0.3 || std::abs(pitch_angle) > 0.3 || std::abs(yaw_angle) > 0.6)
+            throw std::out_of_range("Euler angles out of valid range for FORCE_STAND mode");
+
+        impl_->high_cmd_.euler[0] = roll_angle;
+        impl_->high_cmd_.euler[1] = pitch_angle;
+        impl_->high_cmd_.euler[2] = yaw_angle;
+        impl_->high_cmd_.bodyHeight = body_height;
+        break;
+    }
+
+    default:
+        throw std::runtime_error("DriverUnitreeB1::_command_in_high_level_mode: Unsupported mode!");
+    }
+
     impl_->udp_->SetSend(impl_->high_cmd_);
 }
 

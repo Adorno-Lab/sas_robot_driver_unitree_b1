@@ -116,6 +116,12 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
         std::bind(&RobotDriverUnitreeB1::_callback_target_holonomic_velocities, this, std::placeholders::_1)
         );
 
+    subscriber_target_twist_ = node_->create_subscription<geometry_msgs::msg::TwistStamped>(
+        topic_prefix_ + "/set/target_twist",
+        1,
+        std::bind(&RobotDriverUnitreeB1::_callback_target_twist, this, std::placeholders::_1)
+        );
+
 
     subscriber_watchdog_trigger_ = node_->create_subscription<sas_msgs::msg::WatchdogTrigger>(
         topic_prefix_ + "/set/watchdog_trigger", 1,
@@ -395,6 +401,18 @@ void RobotDriverUnitreeB1::_callback_target_holonomic_velocities(const std_msgs:
 {
     target_holonomic_velocities_  = std_vector_double_to_vectorxd(msg.data);
     new_target_velocities_available_ = true;
+}
+
+void RobotDriverUnitreeB1::_callback_target_twist(const geometry_msgs::msg::TwistStamped& msg)
+{
+    target_twist_ <<msg.twist.angular.x,
+                    msg.twist.angular.y,
+                    msg.twist.angular.z,
+                    msg.twist.linear.x,
+                    msg.twist.linear.y,
+                    msg.twist.linear.z;
+
+    new_target_twist_available_ = true;
 }
 
 void RobotDriverUnitreeB1::_callback_shutdown_signal_(const sas_msgs::msg::Bool &msg)
