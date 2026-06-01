@@ -84,19 +84,21 @@ private:
     HIGH_LEVEL_MODE current_high_level_mode_; // This information cames from the Unitree SDK High State
 
     HIGH_LEVEL_MODE target_high_level_mode_;
+    bool mode_change_in_progress_;
     void _command_in_high_level_mode(const HIGH_LEVEL_MODE& high_level_mode,
                                      const double& forward_vel,
                                      const double& side_vel,
                                      const double& yaw_speed,
-                                     const double& roll_angle,
-                                     const double& pitch_angle,
-                                     const double& yaw_angle,
-                                     const double& body_height);
+                                     const double& roll_angle = 0,
+                                     const double& pitch_angle = 0,
+                                     const double& yaw_angle = 0,
+                                     const double& body_height = 0);
 
 
-    void _command_in_high_level_walking_mode(const double& forward_vel,
-                                             const double& side_vel,
-                                             const double& yaw_speed);
+
+    void _finish_high_level_motion();
+    void _stop_robot_in_high_level_motion();
+    void _check_high_level_mode_request();
 
 
 //void _set_high_level_mode(const HIGH_LEVEL_MODE& high_level_mode);
@@ -129,9 +131,14 @@ private:
 
 
 
-    double high_level_forward_speed_{0};
-    double high_level_side_speed_{0};
-    double high_level_yaw_speed_{0};
+    double target_high_level_forward_speed_{0};
+    double target_high_level_side_speed_{0};
+    double target_high_level_yaw_speed_{0};
+
+    double target_high_level_roll_angle_{0};
+    double target_high_level_pitch_angle_{0};
+    double target_high_level_yaw_angle_{0};
+    double target_high_level_bodyheight_{0}; //delta
 
     std::string ip_ {"0.0.0"};
     int port_{0};
@@ -145,6 +152,8 @@ private:
 
     float dt_{0.002};
     unsigned long long motiontime_{0};
+    unsigned long long frozen_time_in_request_check_{0};
+    bool frozen_time_in_request_check_was_set_{false};
     uint32_t tick_{0}; //real-time from motion controller
 
     int state_of_charge_{0}; // Battery status (0-100%)
