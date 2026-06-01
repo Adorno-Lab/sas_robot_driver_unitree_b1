@@ -303,6 +303,8 @@ public:
     void show_high_mode() const;
     unsigned long long get_motion_time() const;
 
+    void set_mode_in_high_level_control(const HIGH_LEVEL_MODE& mode);
+
 
 
 
