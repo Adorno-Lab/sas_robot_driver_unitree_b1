@@ -120,6 +120,7 @@ DriverUnitreeB1::DriverUnitreeB1(std::atomic_bool *st_break_loops,
                                            const int &LOCAL_PORT,
                                            const std::vector<CUSTOM_FLAGS>& custom_flags):
     st_break_loops_{st_break_loops},
+    target_high_level_mode_{HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING},
     custom_flags_{custom_flags},
     ip_{TARGET_IP},
     port_{TARGET_PORT},
@@ -141,6 +142,7 @@ DriverUnitreeB1::DriverUnitreeB1(std::atomic_bool *st_break_loops,
         impl_->udp_->InitCmdData(impl_->low_cmd_);
     else
         impl_->udp_->InitCmdData(impl_->high_cmd_);
+
 
     UNITREE_LEGGED_SDK::InitEnvironment();
 
@@ -842,6 +844,28 @@ unsigned long long DriverUnitreeB1::get_motion_time() const
     return motiontime_;
 }
 
+void DriverUnitreeB1::set_mode_in_high_level_control(const HIGH_LEVEL_MODE &mode)
+{
+    switch (mode) {
+
+    case HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND:
+        target_high_level_mode_ = HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND;
+        break;
+    case HIGH_LEVEL_MODE::FORCE_STAND:
+        target_high_level_mode_ = HIGH_LEVEL_MODE::FORCE_STAND;
+        break;
+    case HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING:
+        target_high_level_mode_ = HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING;
+        break;
+    case HIGH_LEVEL_MODE::PATH_MODE_WALKING:
+    case HIGH_LEVEL_MODE::POSITION_STAND_DOWN:
+    case HIGH_LEVEL_MODE::POSITION_STAND_UP:
+    case HIGH_LEVEL_MODE::DAMPING_MODE:
+    case HIGH_LEVEL_MODE::RECOVERY_STAND:
+        break;
+    }
+}
+
 
 
 
@@ -1022,12 +1046,26 @@ void DriverUnitreeB1::_command_in_high_level_mode(const HIGH_LEVEL_MODE& high_le
         // roll range:[-0.3, 0.3],
         // pitch range:[-0.3, 0.3],
         // yaw range:[-0.6, 0.6]
-        if (std::abs(roll_angle) > 0.3 || std::abs(pitch_angle) > 0.3 || std::abs(yaw_angle) > 0.6)
-            throw std::out_of_range("Euler angles out of valid range for FORCE_STAND mode");
+        //range:[-0.16, 0.16]
+        if (std::abs(roll_angle) > 0.3)
+            throw std::out_of_range("Roll angle out of valid range [-0.3, 0.3] for FORCE_STAND mode");
+
+        if (std::abs(pitch_angle) > 0.3)
+            throw std::out_of_range("Pitch angle out of valid range [-0.3, 0.3] for FORCE_STAND mode");
+
+        if (std::abs(yaw_angle) > 0.6)
+           throw std::out_of_range("Yaw angle out of valid range [-0.6, 0.6] for FORCE_STAND mode");
+
+        if (std::abs(body_height) > 0.16)
+           throw std::out_of_range("Body height out of valid range [-0.16, 0.16] for FORCE_STAND mode");
+
 
         impl_->high_cmd_.euler[0] = roll_angle;
         impl_->high_cmd_.euler[1] = pitch_angle;
         impl_->high_cmd_.euler[2] = yaw_angle;
+
+
+
         impl_->high_cmd_.bodyHeight = body_height;
         break;
     }
@@ -1037,6 +1075,20 @@ void DriverUnitreeB1::_command_in_high_level_mode(const HIGH_LEVEL_MODE& high_le
     }
 
     impl_->udp_->SetSend(impl_->high_cmd_);
+}
+
+void DriverUnitreeB1::_command_in_high_level_walking_mode(const double &forward_vel,
+                                                          const double &side_vel,
+                                                          const double &yaw_speed)
+{
+    _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING,
+                                forward_vel,
+                                side_vel,
+                                yaw_speed,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0);
 }
 
 

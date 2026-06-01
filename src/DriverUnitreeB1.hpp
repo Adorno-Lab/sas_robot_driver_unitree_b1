@@ -81,7 +81,9 @@ private:
         {9, HIGH_LEVEL_MODE::RECOVERY_STAND         },
         };
 
-    HIGH_LEVEL_MODE current_high_level_mode_;
+    HIGH_LEVEL_MODE current_high_level_mode_; // This information cames from the Unitree SDK High State
+
+    HIGH_LEVEL_MODE target_high_level_mode_;
     void _command_in_high_level_mode(const HIGH_LEVEL_MODE& high_level_mode,
                                      const double& forward_vel,
                                      const double& side_vel,
@@ -90,6 +92,11 @@ private:
                                      const double& pitch_angle,
                                      const double& yaw_angle,
                                      const double& body_height);
+
+
+    void _command_in_high_level_walking_mode(const double& forward_vel,
+                                             const double& side_vel,
+                                             const double& yaw_speed);
 
 
 //void _set_high_level_mode(const HIGH_LEVEL_MODE& high_level_mode);
