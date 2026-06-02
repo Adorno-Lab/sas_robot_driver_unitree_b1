@@ -108,7 +108,7 @@
    <widget class="QWidget" name="horizontalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>20</x>
+      <x>60</x>
       <y>269</y>
       <width>301</width>
       <height>61</height>
@@ -116,7 +116,14 @@
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
-      <widget class="QSlider" name="horizontalSlider_forward_speed">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Vx</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSlider" name="horizontalSlider_forward_speed_">
        <property name="minimum">
         <number>-5</number>
        </property>
@@ -136,13 +143,20 @@
    <widget class="QWidget" name="horizontalLayoutWidget_2">
     <property name="geometry">
      <rect>
-      <x>20</x>
+      <x>60</x>
       <y>340</y>
       <width>301</width>
       <height>61</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Vy</string>
+       </property>
+      </widget>
+     </item>
      <item>
       <widget class="QSlider" name="horizontalSlider_side_speed_">
        <property name="minimum">
@@ -164,13 +178,20 @@
    <widget class="QWidget" name="horizontalLayoutWidget_3">
     <property name="geometry">
      <rect>
-      <x>20</x>
+      <x>60</x>
       <y>410</y>
       <width>301</width>
       <height>61</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_3">
+     <item>
+      <widget class="QLabel" name="label_5">
+       <property name="text">
+        <string>Wz</string>
+       </property>
+      </widget>
+     </item>
      <item>
       <widget class="QSlider" name="horizontalSlider_yaw_speed_">
        <property name="minimum">
@@ -189,19 +210,6 @@
      </item>
     </layout>
    </widget>
-   <widget class="QPushButton" name="pushButton_zero_velocities_">
-    <property name="geometry">
-     <rect>
-      <x>80</x>
-      <y>490</y>
-      <width>161</width>
-      <height>31</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Zero Velocities</string>
-    </property>
-   </widget>
    <widget class="QWidget" name="horizontalLayoutWidget_4">
     <property name="geometry">
      <rect>
@@ -212,6 +220,13 @@
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_4">
+     <item>
+      <widget class="QLabel" name="label_6">
+       <property name="text">
+        <string>R</string>
+       </property>
+      </widget>
+     </item>
      <item>
       <widget class="QSlider" name="horizontalSlider_roll_">
        <property name="minimum">
@@ -241,6 +256,13 @@
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_5">
      <item>
+      <widget class="QLabel" name="label_7">
+       <property name="text">
+        <string>P</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QSlider" name="horizontalSlider_pitch_">
        <property name="minimum">
         <number>-5</number>
@@ -269,6 +291,13 @@
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_6">
      <item>
+      <widget class="QLabel" name="label_8">
+       <property name="text">
+        <string>Y</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QSlider" name="horizontalSlider_yaw_">
        <property name="minimum">
         <number>-5</number>
@@ -289,10 +318,10 @@
    <widget class="QPushButton" name="pushButton_zero_commands_">
     <property name="geometry">
      <rect>
-      <x>550</x>
-      <y>490</y>
-      <width>161</width>
-      <height>31</height>
+      <x>300</x>
+      <y>60</y>
+      <width>201</width>
+      <height>41</height>
      </rect>
     </property>
     <property name="text">
@@ -302,8 +331,8 @@
    <widget class="QLabel" name="elapsed_time_label_">
     <property name="geometry">
      <rect>
-      <x>780</x>
-      <y>10</y>
+      <x>10</x>
+      <y>520</y>
       <width>111</width>
       <height>22</height>
      </rect>
@@ -316,9 +345,9 @@
     <property name="geometry">
      <rect>
       <x>820</x>
-      <y>220</y>
+      <y>230</y>
       <width>81</width>
-      <height>251</height>
+      <height>271</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">
@@ -335,6 +364,13 @@
        </property>
        <property name="orientation">
         <enum>Qt::Orientation::Vertical</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_9">
+       <property name="text">
+        <string>h</string>
        </property>
       </widget>
      </item>

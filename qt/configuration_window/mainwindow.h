@@ -42,10 +42,15 @@ public:
 private slots:
     //void on_horizontalSlider_forward_speed_sliderMoved(int position);
 
-    void update_horizontalSlider_roll();
-    void update_horizontalSlider_pitch();
-    void update_horizontalSlider_yaw();
-    void update_verticalSlider_height();
+    void update_horizontal_slider_roll();
+    void update_horizontal_slider_pitch();
+    void update_horizontal_slider_yaw();
+    void update_vertical_slider_height();
+
+
+    void update_horizontal_slider_forward_speed();
+    void update_horizontal_slider_side_speed();
+    void update_horizontal_slider_yaw_speed();
 
 private:
     Ui::MainWindow *ui;
@@ -58,6 +63,12 @@ private:
     double target_pitch_{0};
     double target_yaw_{0};
     double target_height_{0};
+
+    double target_forward_speed_{0};
+    double target_side_speed_{0};
+    double target_yaw_speed_{0};
+
+    const double slider_factor_ = 100.0;
 
     void _set_zero_commands();
 };
