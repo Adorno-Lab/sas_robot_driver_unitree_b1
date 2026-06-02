@@ -227,8 +227,8 @@
    <widget class="QLabel" name="elapsed_time_label_">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>520</y>
+      <x>0</x>
+      <y>530</y>
       <width>111</width>
       <height>22</height>
      </rect>
@@ -343,7 +343,7 @@
       <x>40</x>
       <y>10</y>
       <width>441</width>
-      <height>221</height>
+      <height>251</height>
      </rect>
     </property>
     <property name="title">
@@ -459,14 +459,27 @@
     <widget class="QLabel" name="label_ip_">
      <property name="geometry">
       <rect>
-       <x>220</x>
-       <y>160</y>
+       <x>210</x>
+       <y>140</y>
        <width>201</width>
        <height>22</height>
       </rect>
      </property>
      <property name="text">
       <string>IP:</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_status_">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>220</y>
+       <width>201</width>
+       <height>22</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Status:</string>
      </property>
     </widget>
    </widget>

@@ -1,9 +1,10 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow),
+    st_break_loops_{break_loops},
     time_step_in_milliseconds_{100},
     elapsed_time_{0}
 {
@@ -45,6 +46,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->dial_select_robot_->setRange(1,3);
     ui->dial_select_robot_->setValue(2);
+
+    ui->dial_change_operation_high_level_mode_->setRange(0,1);
+    ui->dial_change_operation_high_level_mode_->setValue(0);
+
     //ui->dial_select_robot_->set
 
 
@@ -94,6 +99,9 @@ MainWindow::~MainWindow()
 {
     delete ui;
     killTimer(timerId_);
+    _deinitialize();
+    _disconnect();
+    std::cerr<<"destructor called"<<std::endl;
 }
 
 void MainWindow::update_horizontal_slider_roll()
@@ -170,6 +178,18 @@ void MainWindow::update_dial_select_robot()
 
 }
 
+void MainWindow::update_dial_change_operation_high_level_mode()
+{
+    if (unitree_b1_driver_)
+    {
+        int dial = ui->dial_change_operation_high_level_mode_->sliderPosition();
+        if (dial == 0) //walking
+            unitree_b1_driver_->request_change_in_high_level_control(DriverUnitreeB1::HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING);
+        if (dial == 1)
+            unitree_b1_driver_->request_change_in_high_level_control(DriverUnitreeB1::HIGH_LEVEL_MODE::FORCED_STAND);
+    }
+}
+
 void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
 {
     elapsed_time_ += time_step_in_milliseconds_;
@@ -192,6 +212,15 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
     ui->elapsed_time_label_->setText(time_string);
 
     //update_horizontalSlider_roll();
+    if (unitree_b1_driver_)
+    {
+        std::string status_msg = unitree_b1_driver_->get_status_message();
+        ui->label_status_->setText(QString(status_msg.c_str()));
+
+        unitree_b1_driver_->set_high_level_speed(target_forward_speed_, target_side_speed_, target_yaw_speed_);
+        unitree_b1_driver_->set_forced_stand_commands(target_roll_, target_pitch_, target_yaw_, target_height_);
+
+    }
 }
 
 void MainWindow::_set_zero_commands()
@@ -234,24 +263,49 @@ void MainWindow::_connect()
     ui->pushButton_connect_->setEnabled(false);
     ui->pushButton_initialize_->setEnabled(true);
     ui->dial_select_robot_->setEnabled(false);
+
+    if (!unitree_b1_driver_)
+    {
+        std::vector<DriverUnitreeB1::CUSTOM_FLAGS> custom_flags;
+        if (configuration_.FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO)
+            custom_flags.push_back(DriverUnitreeB1::CUSTOM_FLAGS::FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO);
+        unitree_b1_driver_ = std::make_shared<DriverUnitreeB1>(st_break_loops_,
+                                          DriverUnitreeB1::MODE::VelocityControl, // Driver mode
+                                          DriverUnitreeB1::LEVEL::HIGH,       // Level mode
+                                          true,   //verbosity
+                                          2000,   // TIMEOUT in ms
+                                          configuration_.LIE_DOWN_ROBOT_WHEN_DEINITIALIZE, // LIE DOWN ROBOT WHEN DEINITIALIZE
+                                          configuration_.ROBOT_IP,  // Target IP   //192.168.123.10 for low-level mode
+                                          configuration_.ROBOT_PORT,// Target port  //8007 for low-level mode
+                                          8090,
+                                          custom_flags);
+
+    }
+    unitree_b1_driver_->connect();
 }
 
 void MainWindow::_initialize()
 {
     ui->pushButton_initialize_->setEnabled(false);
     ui->pushButton_deinitialize_->setEnabled(true);
+    if (unitree_b1_driver_)
+        unitree_b1_driver_->initialize();
 }
 
 void MainWindow::_deinitialize()
 {
     ui->pushButton_deinitialize_->setEnabled(false);
     ui->pushButton_disconnect_->setEnabled(true);
+    if (unitree_b1_driver_)
+        unitree_b1_driver_->deinitialize();
 }
 
 void MainWindow::_disconnect()
 {
 
     ui->pushButton_disconnect_->setEnabled(false);
+    if (unitree_b1_driver_)
+        unitree_b1_driver_->disconnect();
 }
 
 

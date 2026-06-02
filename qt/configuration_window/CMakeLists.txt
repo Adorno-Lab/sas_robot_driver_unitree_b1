@@ -19,7 +19,7 @@ INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR})
 set(UNITREE_LEGGED_SDK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../src/unitree_legged_sdk/)
 include_directories(${UNITREE_LEGGED_SDK_DIR}/include/)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../src/)
-link_directories(${UNITREE_LEGGED_SDK_DIR}/lib/cpp/${ARCH})
+link_directories(${UNITREE_LEGGED_SDK_DIR}/lib/cpp/amd64)
 set(CMAKE_CXX_FLAGS "-O3 -fPIC")
 
 set(PROJECT_SOURCES
@@ -55,7 +55,8 @@ endif()
 
 target_link_libraries(configuration_window PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
-    ${UNITREE_LEGGED_SDK_DIR}/lib/cpp/${ARCH}/libunitree_legged_sdk.so
+    ${UNITREE_LEGGED_SDK_DIR}/lib/cpp/amd64/libunitree_legged_sdk.so
+    dqrobotics
 )
 
 

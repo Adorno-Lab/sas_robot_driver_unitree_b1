@@ -35,6 +35,17 @@ using namespace Eigen;
 
 class DriverUnitreeB1
 {
+public:
+    enum class HIGH_LEVEL_MODE{
+        IDLE_DEFAULT_STAND, // 0. idle, default stand
+        FORCED_STAND,        // 1. force stand (controlled by dBodyHeight + ypr)
+        TARGET_VELOCITY_WALKING, // 2. target velocity walking (controlled by velocity + yawSpeed)
+        PATH_MODE_WALKING,     // 4. path mode walking (reserve for future release)
+        POSITION_STAND_DOWN,   // 5. position stand down.
+        POSITION_STAND_UP,    // 6. position stand up
+        DAMPING_MODE,         // 7. damping mode
+        RECOVERY_STAND        // 9. recovery stand
+    };
 protected:
     std::atomic_bool* st_break_loops_;
 private:
@@ -48,16 +59,7 @@ private:
     STATUS current_status_{STATUS::IDLE};
     std::string status_msg_;
 
-    enum class HIGH_LEVEL_MODE{
-        IDLE_DEFAULT_STAND, // 0. idle, default stand
-        FORCED_STAND,        // 1. force stand (controlled by dBodyHeight + ypr)
-        TARGET_VELOCITY_WALKING, // 2. target velocity walking (controlled by velocity + yawSpeed)
-        PATH_MODE_WALKING,     // 4. path mode walking (reserve for future release)
-        POSITION_STAND_DOWN,   // 5. position stand down.
-        POSITION_STAND_UP,    // 6. position stand up
-        DAMPING_MODE,         // 7. damping mode
-        RECOVERY_STAND        // 9. recovery stand
-    };
+
     const std::unordered_map<HIGH_LEVEL_MODE, uint8_t> high_level_mode_map_ =
         {
         {HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND,      0},
@@ -305,6 +307,10 @@ public:
                               const double& side_speed = 0,
                               const double& yaw_speed = 0);
 
+    void set_forced_stand_commands(const double& roll_angle=0,
+                                   const double& pitch_angle=0,
+                                   const double& yaw_angle=0,
+                                   const double& bodyheight=0);
 
 
     double get_high_level_forward_speed_reference() const;

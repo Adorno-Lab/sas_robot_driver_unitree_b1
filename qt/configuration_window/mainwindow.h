@@ -47,14 +47,14 @@ private:
         bool FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO; // to handle this https://github.com/Adorno-Lab/sas_robot_driver_unitree_b1/issues/4
     };
     RobotConfiguration configuration_;
-     std::shared_ptr<DriverUnitreeB1> unitree_b1_driver_;
+    std::shared_ptr<DriverUnitreeB1> unitree_b1_driver_;
+    std::atomic_bool* st_break_loops_;
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    MainWindow(std::atomic_bool *break_loops, QWidget *parent = nullptr);
     ~MainWindow();
 
 private slots:
-    //void on_horizontalSlider_forward_speed_sliderMoved(int position);
 
     void update_horizontal_slider_roll();
     void update_horizontal_slider_pitch();
@@ -67,6 +67,7 @@ private slots:
     void update_horizontal_slider_yaw_speed();
 
     void update_dial_select_robot();
+    void update_dial_change_operation_high_level_mode();
 
 
 

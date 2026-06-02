@@ -784,6 +784,17 @@ void DriverUnitreeB1::set_high_level_speed(const double &forward_speed, const do
     target_high_level_yaw_speed_ = yaw_speed;
 }
 
+void DriverUnitreeB1::set_forced_stand_commands(const double &roll_angle,
+                                                const double &pitch_angle,
+                                                const double &yaw_angle,
+                                                const double &bodyheight)
+{
+    target_high_level_roll_angle_ = roll_angle;
+    target_high_level_pitch_angle_ = pitch_angle;
+    target_high_level_yaw_angle_ = yaw_angle;
+    target_high_level_bodyheight_ = bodyheight;
+}
+
 /**
  * @brief DriverUnitreeB1::get_high_level_forward_speed_reference returns the mobile platform velocities.
  * @return
