@@ -92,6 +92,8 @@ MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
 
     connect(ui->dial_select_robot_, &QDial::valueChanged,
             this, &MainWindow::update_dial_select_robot);
+    connect(ui->dial_change_operation_high_level_mode_, &QDial::valueChanged,
+            this, &MainWindow::update_dial_change_operation_high_level_mode);
 
 }
 
@@ -207,8 +209,8 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
                               .arg(minutes, 2, 10, QChar('0'))
                               .arg(seconds, 2, 10, QChar('0'));
 
-    qDebug() << "target_roll: " << target_roll_ << " target_pitch: "<<target_pitch_<<" target_yaw: "<<target_yaw_;
-    qDebug() << "vx: " << target_forward_speed_ << " vy: "<<target_side_speed_<<" vw: "<<target_yaw_speed_;
+  //  qDebug() << "target_roll: " << target_roll_ << " target_pitch: "<<target_pitch_<<" target_yaw: "<<target_yaw_;
+  //  qDebug() << "vx: " << target_forward_speed_ << " vy: "<<target_side_speed_<<" vw: "<<target_yaw_speed_;
     ui->elapsed_time_label_->setText(time_string);
 
     //update_horizontalSlider_roll();

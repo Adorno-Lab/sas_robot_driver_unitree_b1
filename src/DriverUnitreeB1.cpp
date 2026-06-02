@@ -931,6 +931,7 @@ void DriverUnitreeB1::_robot_control()
                     if (motiontime_>= frozen_time_in_request_check_ && motiontime_ < frozen_time_in_request_check_+deltatime)
                     {
                         _stop_robot_in_high_level_motion();
+                        _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
                     }else
                     {
                        mode_change_in_progress_ = false;
@@ -1012,7 +1013,7 @@ void DriverUnitreeB1::_command_robot_in_high_level_motion()
                                         target_high_level_yaw_speed_);
     }else if (target_high_level_mode_ == HIGH_LEVEL_MODE::FORCED_STAND)
     {
-        _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0,0,0,
+        _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND,0,0,0,
                                     target_high_level_roll_angle_,
                                     target_high_level_pitch_angle_,
                                     target_high_level_yaw_angle_,
@@ -1178,9 +1179,9 @@ void DriverUnitreeB1::_command_in_high_level_mode(const HIGH_LEVEL_MODE& high_le
         impl_->high_cmd_.bodyHeight = body_height;
         break;
     }
-
     default:
-        throw std::runtime_error("DriverUnitreeB1::_command_in_high_level_mode: Unsupported mode!");
+        break;
+        //std::cerr<<"DriverUnitreeB1::_command_in_high_level_mode: Unsupported mode!"<<std::endl;
     }
 
     impl_->udp_->SetSend(impl_->high_cmd_);
