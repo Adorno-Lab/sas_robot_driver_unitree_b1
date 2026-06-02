@@ -50,7 +50,7 @@ private:
 
     enum class HIGH_LEVEL_MODE{
         IDLE_DEFAULT_STAND, // 0. idle, default stand
-        FORCE_STAND,        // 1. force stand (controlled by dBodyHeight + ypr)
+        FORCED_STAND,        // 1. force stand (controlled by dBodyHeight + ypr)
         TARGET_VELOCITY_WALKING, // 2. target velocity walking (controlled by velocity + yawSpeed)
         PATH_MODE_WALKING,     // 4. path mode walking (reserve for future release)
         POSITION_STAND_DOWN,   // 5. position stand down.
@@ -61,7 +61,7 @@ private:
     const std::unordered_map<HIGH_LEVEL_MODE, uint8_t> high_level_mode_map_ =
         {
         {HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND,      0},
-        {HIGH_LEVEL_MODE::FORCE_STAND,             1},
+        {HIGH_LEVEL_MODE::FORCED_STAND,             1},
         {HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 2},
         {HIGH_LEVEL_MODE::PATH_MODE_WALKING,       4},
         {HIGH_LEVEL_MODE::POSITION_STAND_DOWN,     5},
@@ -72,7 +72,7 @@ private:
     const std::unordered_map<uint8_t, HIGH_LEVEL_MODE> high_level_mode_map_inv_ =
         {
         {0, HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND     },
-        {1, HIGH_LEVEL_MODE::FORCE_STAND            },
+        {1, HIGH_LEVEL_MODE::FORCED_STAND            },
         {2, HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING},
         {4, HIGH_LEVEL_MODE::PATH_MODE_WALKING      },
         {5, HIGH_LEVEL_MODE::POSITION_STAND_DOWN    },

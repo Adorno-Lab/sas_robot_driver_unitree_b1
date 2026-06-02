@@ -812,7 +812,7 @@ void DriverUnitreeB1::show_high_mode() const
     case HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND:
         std::cerr<<"IDLE_DEFAULT_STAND"<<std::endl;
         break;
-    case HIGH_LEVEL_MODE::FORCE_STAND:
+    case HIGH_LEVEL_MODE::FORCED_STAND:
         std::cerr<<"FORCE_STAND"<<std::endl;
         break;
     case HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING:
@@ -850,7 +850,7 @@ unsigned long long DriverUnitreeB1::get_motion_time() const
  * @brief Requests a change to a new high-level robot control mode.
  *
  * Validates the requested mode and initiates a mode transition if different from current.
- * Supported modes: IDLE_DEFAULT_STAND, FORCE_STAND, TARGET_VELOCITY_WALKING.
+ * Supported modes: IDLE_DEFAULT_STAND, FORCED_STAND, TARGET_VELOCITY_WALKING.
  *
  * When a mode change is requested:
  * - Sets mode_change_in_progress_ = true to trigger stopping sequence
@@ -871,7 +871,7 @@ void DriverUnitreeB1::request_change_in_high_level_control(const HIGH_LEVEL_MODE
         // Validate mode is supported
         switch (mode) {
         case HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND:
-        case HIGH_LEVEL_MODE::FORCE_STAND:
+        case HIGH_LEVEL_MODE::FORCED_STAND:
         case HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING:
             break;  // Supported
         default:
@@ -942,7 +942,7 @@ void DriverUnitreeB1::_robot_control()
  *
  * Uses either zero-velocity walking commands or a two-stage braking strategy
  * (walking stop -> force stand) depending on the FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO flag.
- * The two-stage approach is required for some firmware versions where FORCE_STAND
+ * The two-stage approach is required for some firmware versions where FORCED_STAND
  * cannot stop a moving robot above speed_threshold_to_force_stand_mode_.
  */
 void DriverUnitreeB1::_stop_robot_in_high_level_motion()
@@ -962,7 +962,7 @@ void DriverUnitreeB1::_stop_robot_in_high_level_motion()
             std::abs(vy)>= speed_threshold_to_force_stand_mode_)
             _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0,0.0,0.0);
         else
-            _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCE_STAND, 0.0, 0.0, 0.0);
+            _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
     }
     else
         _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0,0.0,0.0);
@@ -977,7 +977,7 @@ void DriverUnitreeB1::_stop_robot_in_high_level_motion()
  * - TARGET_VELOCITY_WALKING: Commands walking with specified forward/side/yaw velocities.
  *   If all velocities are zero, calls _stop_robot_in_high_level_motion() instead.
  *
- * - FORCE_STAND: Commands force stand mode with specified roll, pitch, yaw, and body height.
+ * - FORCED_STAND: Commands force stand mode with specified roll, pitch, yaw, and body height.
  *
  * - Default (IDLE_DEFAULT_STAND): Commands idle stand mode (zero velocities).
  *
@@ -999,9 +999,9 @@ void DriverUnitreeB1::_command_robot_in_high_level_motion()
             _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, target_high_level_forward_speed_,
                                         target_high_level_side_speed_,
                                         target_high_level_yaw_speed_);
-    }else if (target_high_level_mode_ == HIGH_LEVEL_MODE::FORCE_STAND)
+    }else if (target_high_level_mode_ == HIGH_LEVEL_MODE::FORCED_STAND)
     {
-        _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCE_STAND, 0,0,0,
+        _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0,0,0,
                                     target_high_level_roll_angle_,
                                     target_high_level_pitch_angle_,
                                     target_high_level_yaw_angle_,
@@ -1080,7 +1080,7 @@ void DriverUnitreeB1::_finish_high_level_motion()
  *
  * @param high_level_mode The high level mode. This can be:
  *       - IDLE_DEFAULT_STAND (0): Idle/default stand mode (currently unsupported)
- *       - FORCE_STAND (1): Force stand mode controlled by body height and Euler angles
+ *       - FORCED_STAND (1): Force stand mode controlled by body height and Euler angles
  *       - TARGET_VELOCITY_WALKING (2): Target velocity walking mode controlled by linear and angular velocities
  *       - PATH_MODE_WALKING (4): Path mode walking (reserved, currently unsupported)
  *       - POSITION_STAND_DOWN (5): Position stand down (currently unsupported)
@@ -1098,21 +1098,21 @@ void DriverUnitreeB1::_finish_high_level_motion()
  *                  Used only in TARGET_VELOCITY_WALKING mode.
  *
  * @param roll_angle Target roll angle in radians. Valid range: [-0.3, 0.3].
- *                   Used only in FORCE_STAND mode.
+ *                   Used only in FORCED_STAND mode.
  *
  * @param pitch_angle Target pitch angle in radians. Valid range: [-0.3, 0.3].
- *                    Used only in FORCE_STAND mode.
+ *                    Used only in FORCED_STAND mode.
  *
  * @param yaw_angle Target yaw angle in radians. Valid range: [-0.6, 0.6].
- *                  Used only in FORCE_STAND mode.
+ *                  Used only in FORCED_STAND mode.
  *
  * @param body_height Target body height from ground in meters. Valid range depends on robot configuration.
- *                    Used only in FORCE_STAND mode.
+ *                    Used only in FORCED_STAND mode.
  *
- * @throws std::out_of_range If any FORCE_STAND mode Euler angle exceeds its valid range.
+ * @throws std::out_of_range If any FORCED_STAND mode Euler angle exceeds its valid range.
  * @throws std::runtime_error If an unsupported high_level_mode is provided.
  *
- * @note Only FORCE_STAND and TARGET_VELOCITY_WALKING modes are currently implemented.
+ * @note Only FORCED_STAND and TARGET_VELOCITY_WALKING modes are currently implemented.
  *       All other modes will throw a std::runtime_error.
  * @note The high_cmd_ structure is always zero-initialized before populating to prevent stale data.
  * @note The command is sent immediately via UDP after population.
@@ -1138,7 +1138,7 @@ void DriverUnitreeB1::_command_in_high_level_mode(const HIGH_LEVEL_MODE& high_le
         break;
     }
 
-    case HIGH_LEVEL_MODE::FORCE_STAND:
+    case HIGH_LEVEL_MODE::FORCED_STAND:
     {
         // (unit: rad), roll pitch yaw in stand mode,
         // roll range:[-0.3, 0.3],
