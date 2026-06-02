@@ -24,6 +24,7 @@
 
 #pragma once
 #include <QMainWindow>
+//#include "DriverUnitreeB1.hpp"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -71,4 +72,13 @@ private:
     const double slider_factor_ = 100.0;
 
     void _set_zero_commands();
+
+    void _connect();
+    void _initialize();
+    void _deinitialize();
+    void _disconnect();
+
+
+
+
 };

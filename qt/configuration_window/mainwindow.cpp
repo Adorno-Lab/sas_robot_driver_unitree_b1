@@ -42,6 +42,11 @@ MainWindow::MainWindow(QWidget *parent)
     ui->horizontalSlider_yaw_->setTickInterval(1);
     ui->doubleSpinBox_yaw_->setRange(-0.3,0.3);
 
+
+    ui->pushButton_initialize_->setEnabled(false);
+    ui->pushButton_deinitialize_->setEnabled(false);
+    ui->pushButton_disconnect_->setEnabled(false);
+
     connect(ui->pushButton_zero_commands_, &QPushButton::clicked,
             this,&MainWindow::_set_zero_commands);
 
@@ -61,6 +66,16 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::update_horizontal_slider_side_speed);
     connect(ui->horizontalSlider_yaw_speed_, &QSlider::sliderMoved,
             this, &MainWindow::update_horizontal_slider_yaw_speed);
+
+
+    connect(ui->pushButton_connect_, &QPushButton::clicked,
+            this, &MainWindow::_connect);
+    connect(ui->pushButton_initialize_, &QPushButton::clicked,
+            this, &MainWindow::_initialize);
+    connect(ui->pushButton_deinitialize_, &QPushButton::clicked,
+            this, &MainWindow::_deinitialize);
+    connect(ui->pushButton_disconnect_, &QPushButton::clicked,
+            this, &MainWindow::_disconnect);
 
 }
 
@@ -170,6 +185,30 @@ void MainWindow::_set_zero_commands()
     ui->horizontalSlider_yaw_speed_->setSliderPosition(0);
     ui->doubleSpinBox_yaw_speed_->setValue(0);
 
+}
+
+void MainWindow::_connect()
+{
+    ui->pushButton_connect_->setEnabled(false);
+    ui->pushButton_initialize_->setEnabled(true);
+}
+
+void MainWindow::_initialize()
+{
+    ui->pushButton_initialize_->setEnabled(false);
+    ui->pushButton_deinitialize_->setEnabled(true);
+}
+
+void MainWindow::_deinitialize()
+{
+    ui->pushButton_deinitialize_->setEnabled(false);
+    ui->pushButton_disconnect_->setEnabled(true);
+}
+
+void MainWindow::_disconnect()
+{
+
+    ui->pushButton_disconnect_->setEnabled(false);
 }
 
 
