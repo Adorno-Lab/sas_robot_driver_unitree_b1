@@ -24,7 +24,7 @@
 
 #pragma once
 #include <QMainWindow>
-//#include "DriverUnitreeB1.hpp"
+#include "DriverUnitreeB1.hpp"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -35,6 +35,19 @@ QT_END_NAMESPACE
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
+
+private:
+    struct RobotConfiguration
+    {
+        std::string mode;              //const std::string mode= "PositionControl";
+        bool LIE_DOWN_ROBOT_WHEN_DEINITIALIZE;  //std::string LIE_DOWN_ROBOT_WHEN_DEINITIALIZE
+        std::string ROBOT_IP; //"192.168.123.220",  // Target IP   //192.168.123.10 for low-level mode
+        int ROBOT_PORT; //    8082,              // Target port  //8007 for low-level mode
+        std::string robot_name;
+        bool FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO; // to handle this https://github.com/Adorno-Lab/sas_robot_driver_unitree_b1/issues/4
+    };
+    RobotConfiguration configuration_;
+     std::shared_ptr<DriverUnitreeB1> unitree_b1_driver_;
 
 public:
     MainWindow(QWidget *parent = nullptr);
@@ -53,6 +66,10 @@ private slots:
     void update_horizontal_slider_side_speed();
     void update_horizontal_slider_yaw_speed();
 
+    void update_dial_select_robot();
+
+
+
 private:
     Ui::MainWindow *ui;
     void timerEvent(QTimerEvent *event);
@@ -70,6 +87,8 @@ private:
     double target_yaw_speed_{0};
 
     const double slider_factor_ = 100.0;
+
+    QString pause_yellow_color_ = "background-color: #fcca03;";
 
     void _set_zero_commands();
 

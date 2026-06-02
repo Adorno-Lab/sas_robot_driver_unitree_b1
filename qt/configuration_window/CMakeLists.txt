@@ -11,12 +11,23 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+find_package(Eigen3 REQUIRED)
+
+
+INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR})
+
+set(UNITREE_LEGGED_SDK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../src/unitree_legged_sdk/)
+include_directories(${UNITREE_LEGGED_SDK_DIR}/include/)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../src/)
+link_directories(${UNITREE_LEGGED_SDK_DIR}/lib/cpp/${ARCH})
+set(CMAKE_CXX_FLAGS "-O3 -fPIC")
 
 set(PROJECT_SOURCES
         main.cpp
         mainwindow.cpp
         mainwindow.h
         mainwindow.ui
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../src//DriverUnitreeB1.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -42,7 +53,12 @@ else()
     endif()
 endif()
 
-target_link_libraries(configuration_window PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(configuration_window PRIVATE
+    Qt${QT_VERSION_MAJOR}::Widgets
+    ${UNITREE_LEGGED_SDK_DIR}/lib/cpp/${ARCH}/libunitree_legged_sdk.so
+)
+
+
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an

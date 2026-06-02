@@ -43,9 +43,17 @@ MainWindow::MainWindow(QWidget *parent)
     ui->doubleSpinBox_yaw_->setRange(-0.3,0.3);
 
 
+    ui->dial_select_robot_->setRange(1,3);
+    ui->dial_select_robot_->setValue(2);
+    //ui->dial_select_robot_->set
+
+
+    ui->pushButton_connect_->setEnabled(false);
     ui->pushButton_initialize_->setEnabled(false);
     ui->pushButton_deinitialize_->setEnabled(false);
     ui->pushButton_disconnect_->setEnabled(false);
+
+    ui->pushButton_zero_commands_->setStyleSheet(pause_yellow_color_);
 
     connect(ui->pushButton_zero_commands_, &QPushButton::clicked,
             this,&MainWindow::_set_zero_commands);
@@ -76,6 +84,9 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::_deinitialize);
     connect(ui->pushButton_disconnect_, &QPushButton::clicked,
             this, &MainWindow::_disconnect);
+
+    connect(ui->dial_select_robot_, &QDial::valueChanged,
+            this, &MainWindow::update_dial_select_robot);
 
 }
 
@@ -126,6 +137,37 @@ void MainWindow::update_horizontal_slider_yaw_speed()
 {
     target_yaw_speed_ = ui->horizontalSlider_yaw_speed_->sliderPosition()/slider_factor_;
     ui->doubleSpinBox_yaw_speed_->setValue(target_yaw_speed_);
+}
+
+void MainWindow::update_dial_select_robot()
+{
+    int sr = ui->dial_select_robot_->sliderPosition();
+
+    std::string ip = "192.168.8.170";
+
+    if (sr == 1) //White robot
+    {
+        configuration_.ROBOT_IP = "192.168.8.170";
+        configuration_.LIE_DOWN_ROBOT_WHEN_DEINITIALIZE = false;
+        configuration_.ROBOT_PORT = 8082;
+        configuration_.FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO = false;
+        ui->label_ip_->setText(QString(("IP: "+configuration_.ROBOT_IP).c_str()));
+        ui->pushButton_connect_->setEnabled(true);
+    }else if (sr == 2)
+    {
+        ui->pushButton_connect_->setEnabled(false);
+    }else if (sr == 3) //Black robot
+    {
+        configuration_.ROBOT_IP = "192.168.8.226";
+        configuration_.LIE_DOWN_ROBOT_WHEN_DEINITIALIZE = false;
+        configuration_.ROBOT_PORT = 8082;
+        configuration_.FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO = true;
+        ui->label_ip_->setText(QString(("IP: "+configuration_.ROBOT_IP).c_str()));
+        ui->pushButton_connect_->setEnabled(true);
+    }
+
+
+
 }
 
 void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
@@ -191,6 +233,7 @@ void MainWindow::_connect()
 {
     ui->pushButton_connect_->setEnabled(false);
     ui->pushButton_initialize_->setEnabled(true);
+    ui->dial_select_robot_->setEnabled(false);
 }
 
 void MainWindow::_initialize()
@@ -210,6 +253,8 @@ void MainWindow::_disconnect()
 
     ui->pushButton_disconnect_->setEnabled(false);
 }
+
+
 
 
 
