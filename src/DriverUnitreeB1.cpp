@@ -845,28 +845,40 @@ unsigned long long DriverUnitreeB1::get_motion_time() const
     return motiontime_;
 }
 
-void DriverUnitreeB1::set_mode_in_high_level_control(const HIGH_LEVEL_MODE &mode)
+
+/**
+ * @brief Requests a change to a new high-level robot control mode.
+ *
+ * Validates the requested mode and initiates a mode transition if different from current.
+ * Supported modes: IDLE_DEFAULT_STAND, FORCE_STAND, TARGET_VELOCITY_WALKING.
+ *
+ * When a mode change is requested:
+ * - Sets mode_change_in_progress_ = true to trigger stopping sequence
+ * - Updates target_high_level_mode_ to the new mode
+ * - The actual mode change occurs after the robot stops (handled in _robot_control())
+ *
+ * @param mode The requested high-level control mode
+ * @throws std::runtime_error if mode is not supported
+ *
+ * @note Unsupported modes (PATH_MODE_WALKING, POSITION_STAND_DOWN, etc.) will throw an exception
+ * @see mode_change_in_progress_
+ * @see target_high_level_mode_
+ */
+void DriverUnitreeB1::request_change_in_high_level_control(const HIGH_LEVEL_MODE &mode)
 {
-    if (target_high_level_mode_ != current_high_level_mode_)
+    if (target_high_level_mode_ != mode)
+    {
+        // Validate mode is supported
+        switch (mode) {
+        case HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND:
+        case HIGH_LEVEL_MODE::FORCE_STAND:
+        case HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING:
+            break;  // Supported
+        default:
+            throw std::runtime_error("DriverUnitreeB1::request_change_in_high_level_control: Unsupported mode!");
+        }
         mode_change_in_progress_ = true;
-
-    switch (mode) {
-
-    case HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND:
-        target_high_level_mode_ = HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND;
-        break;
-    case HIGH_LEVEL_MODE::FORCE_STAND:
-        target_high_level_mode_ = HIGH_LEVEL_MODE::FORCE_STAND;
-        break;
-    case HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING:
-        target_high_level_mode_ = HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING;
-        break;
-    case HIGH_LEVEL_MODE::PATH_MODE_WALKING:
-    case HIGH_LEVEL_MODE::POSITION_STAND_DOWN:
-    case HIGH_LEVEL_MODE::POSITION_STAND_UP:
-    case HIGH_LEVEL_MODE::DAMPING_MODE:
-    case HIGH_LEVEL_MODE::RECOVERY_STAND:
-        break;
+        target_high_level_mode_ = mode;
     }
 }
 
@@ -897,37 +909,14 @@ void DriverUnitreeB1::_robot_control()
             {
                 if (!mode_change_in_progress_)
                 {
-                    if (target_high_level_mode_ == HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING)
-                    {
-                        bool all_speeds_are_zero = are_approximately_equal(target_high_level_forward_speed_, 0.0) &&
-                                                   are_approximately_equal(target_high_level_side_speed_, 0.0) &&
-                                                   are_approximately_equal(target_high_level_yaw_speed_, 0.0);
-
-                        if (all_speeds_are_zero)
-                            _stop_robot_in_high_level_motion();
-                        else
-                            _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, target_high_level_forward_speed_,
-                                                                                                  target_high_level_side_speed_,
-                                                                                                  target_high_level_yaw_speed_);
-                    }else if (target_high_level_mode_ == HIGH_LEVEL_MODE::FORCE_STAND)
-                    {
-                         _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCE_STAND, 0,0,0,
-                                                    target_high_level_roll_angle_,
-                                                    target_high_level_pitch_angle_,
-                                                    target_high_level_yaw_angle_,
-                                                    target_high_level_bodyheight_);
-                    }
-                    else
-                    {
-                        _command_in_high_level_mode(HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND, 0,0,0);
-                    }
+                    _command_robot_in_high_level_motion();
                 }else{
                     if (!frozen_time_in_request_check_was_set_)
                     {
                         frozen_time_in_request_check_ = motiontime_;
                         frozen_time_in_request_check_was_set_ = true;
                     }
-                    const int deltatime = 3000;
+                    const int deltatime = 2000; //This time is based on the Unitree Examples
                     if (motiontime_>= frozen_time_in_request_check_ && motiontime_ < frozen_time_in_request_check_+deltatime)
                     {
                         _stop_robot_in_high_level_motion();
@@ -935,10 +924,9 @@ void DriverUnitreeB1::_robot_control()
                     {
                        mode_change_in_progress_ = false;
                        frozen_time_in_request_check_was_set_ = false;
+                       _command_robot_in_high_level_motion();
                     }
                 }
-
-
             }else{
                 _finish_high_level_motion();
             }
@@ -949,7 +937,14 @@ void DriverUnitreeB1::_robot_control()
     }
 }
 
-
+/**
+ * @brief Stops the robot's motion in high-level control mode.
+ *
+ * Uses either zero-velocity walking commands or a two-stage braking strategy
+ * (walking stop -> force stand) depending on the FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO flag.
+ * The two-stage approach is required for some firmware versions where FORCE_STAND
+ * cannot stop a moving robot above speed_threshold_to_force_stand_mode_.
+ */
 void DriverUnitreeB1::_stop_robot_in_high_level_motion()
 {
     bool force_stand_mode = flag_in_custom_flags(CUSTOM_FLAGS::FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO, custom_flags_);
@@ -957,10 +952,10 @@ void DriverUnitreeB1::_stop_robot_in_high_level_motion()
     {
         VectorXd vec_angular_velocity = get_high_level_angular_velocity().vec3();
         double w = vec_angular_velocity(2);
-        VectorXd vec_acceleration = get_high_level_linear_velocity().vec3();
-        double vx = vec_acceleration(0);
-        double vy = vec_acceleration(0);
-        // It the robot velocities are higher than a threshold, the FORCE_STAND mode can not stop the robot.
+        VectorXd vec_linear_velocity= get_high_level_linear_velocity().vec3();
+        double vx = vec_linear_velocity(0);
+        double vy = vec_linear_velocity(1);
+        // It the robot velocities are higher than a threshold, the FORCE_STAND mode could not stop the robot in some firmware versions.
         // Therefore, I first use TARGET_VELOCITY_WALKING to stop the robot and FORCE_STAND to stop the gait.
         if (std::abs(w) >= speed_threshold_to_force_stand_mode_ ||
             std::abs(vx)>= speed_threshold_to_force_stand_mode_ ||
@@ -974,6 +969,63 @@ void DriverUnitreeB1::_stop_robot_in_high_level_motion()
 }
 
 
+/**
+ * @brief Executes the appropriate high-level motion command based on the current target mode.
+ *
+ * Dispatches commands to the robot according to target_high_level_mode_:
+ *
+ * - TARGET_VELOCITY_WALKING: Commands walking with specified forward/side/yaw velocities.
+ *   If all velocities are zero, calls _stop_robot_in_high_level_motion() instead.
+ *
+ * - FORCE_STAND: Commands force stand mode with specified roll, pitch, yaw, and body height.
+ *
+ * - Default (IDLE_DEFAULT_STAND): Commands idle stand mode (zero velocities).
+ *
+ * @note This function assumes mode_change_in_progress_ is false (no pending mode transition).
+ * @see _stop_robot_in_high_level_motion()
+ * @see _command_in_high_level_mode()
+ */
+void DriverUnitreeB1::_command_robot_in_high_level_motion()
+{
+    if (target_high_level_mode_ == HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING)
+    {
+        bool all_speeds_are_zero = are_approximately_equal(target_high_level_forward_speed_, 0.0) &&
+                                   are_approximately_equal(target_high_level_side_speed_, 0.0) &&
+                                   are_approximately_equal(target_high_level_yaw_speed_, 0.0);
+
+        if (all_speeds_are_zero)
+            _stop_robot_in_high_level_motion();
+        else
+            _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, target_high_level_forward_speed_,
+                                        target_high_level_side_speed_,
+                                        target_high_level_yaw_speed_);
+    }else if (target_high_level_mode_ == HIGH_LEVEL_MODE::FORCE_STAND)
+    {
+        _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCE_STAND, 0,0,0,
+                                    target_high_level_roll_angle_,
+                                    target_high_level_pitch_angle_,
+                                    target_high_level_yaw_angle_,
+                                    target_high_level_bodyheight_);
+    }
+    else
+    {
+        _command_in_high_level_mode(HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND, 0,0,0);
+    }
+}
+
+
+/**
+ * @brief Executes controlled robot shutdown during driver deinitialization.
+ *
+ * Implements a 4-stage shutdown sequence (3 seconds per stage):
+ * 1. Stop robot motion
+ * 2. Stand up (if not in damping mode)
+ * 3. Stand down (optional, based on LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_)
+ * 4. Enter damping mode (optional)
+ * 5. Final idle state with deinitialization flag set
+ *
+ * @note Uses static frozen_time - ensure single call per deinitialization
+ */
 void DriverUnitreeB1::_finish_high_level_motion()
 {
     // This part of the code is executed when the driver is deinitialized.

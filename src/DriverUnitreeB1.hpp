@@ -98,6 +98,7 @@ private:
 
     void _finish_high_level_motion();
     void _stop_robot_in_high_level_motion();
+    void _command_robot_in_high_level_motion();
     void _check_high_level_mode_request();
 
 
@@ -312,7 +313,7 @@ public:
     void show_high_mode() const;
     unsigned long long get_motion_time() const;
 
-    void set_mode_in_high_level_control(const HIGH_LEVEL_MODE& mode);
+    void request_change_in_high_level_control(const HIGH_LEVEL_MODE& mode);
 
 
 
