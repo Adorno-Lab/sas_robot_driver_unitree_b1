@@ -159,6 +159,9 @@ private:
     bool frozen_time_in_request_check_was_set_{false};
     uint32_t tick_{0}; //real-time from motion controller
 
+    unsigned long long frozen_time_high_level_stop_motion_{0};
+    bool frozen_time_high_level_stop_motion_was_set_{false};
+
     int state_of_charge_{0}; // Battery status (0-100%)
 
     bool communication_established_{false};

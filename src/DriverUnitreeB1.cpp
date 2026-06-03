@@ -961,7 +961,7 @@ void DriverUnitreeB1::_robot_control()
                     if (motiontime_>= frozen_time_in_request_check_ && motiontime_ < frozen_time_in_request_check_+deltatime)
                     {
                         _stop_robot_in_high_level_motion();
-                        _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
+                        //_command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
                     }else
                     {
                        mode_change_in_progress_ = false;
@@ -992,23 +992,24 @@ void DriverUnitreeB1::_stop_robot_in_high_level_motion()
     bool force_stand_mode = flag_in_custom_flags(CUSTOM_FLAGS::FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO, custom_flags_);
     if (force_stand_mode)
     {
-        VectorXd vec_angular_velocity = get_high_level_angular_velocity().vec3();
-        double w = vec_angular_velocity(2);
-        VectorXd vec_linear_velocity= get_high_level_linear_velocity().vec3();
-        double vx = vec_linear_velocity(0);
-        double vy = vec_linear_velocity(1);
-        // It the robot velocities are higher than a threshold, the FORCE_STAND mode could not stop the robot in some firmware versions.
-        // Therefore, I first use TARGET_VELOCITY_WALKING to stop the robot and FORCE_STAND to stop the gait.
-        //std::cout<<"vel_x: "<<vx<<" vel_y: "<<vy<<" vel_w: "<<w<<std::endl;
-        if (std::abs(w) >= speed_threshold_to_force_stand_mode_ ||
-            std::abs(vx)>= speed_threshold_to_force_stand_mode_ ||
-            std::abs(vy)>= speed_threshold_to_force_stand_mode_)
+        const int STOPPING_DURATION_MS = 1500;
+
+        // Start timer if not already started
+        if (!frozen_time_high_level_stop_motion_was_set_)
         {
-            _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0,0.0,0.0);
+            frozen_time_high_level_stop_motion_ = motiontime_;
+            frozen_time_high_level_stop_motion_was_set_ = true;
         }
-        else
+        // Check if timer has expired
+        bool timer_expired = (motiontime_ - frozen_time_high_level_stop_motion_) >= STOPPING_DURATION_MS;
+        if (timer_expired)
         {
+            // After STOPPING_DURATION_MS, use forced stand
             _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
+        }else
+        {
+            // During STOPPING_DURATION_MS, send zero walking commands
+            _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0, 0.0, 0.0);
         }
     }
     else
@@ -1041,13 +1042,23 @@ void DriverUnitreeB1::_command_robot_in_high_level_motion()
                                    are_approximately_equal(target_high_level_yaw_speed_, 0.0);
 
         if (all_speeds_are_zero)
+        {
             _stop_robot_in_high_level_motion();
+        }
         else
+        {
+            // Reset the stop motion timer when we receive non-zero velocity commands
+            // This allows the robot to start moving again immediately
+            frozen_time_high_level_stop_motion_was_set_ = false;
+
             _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, target_high_level_forward_speed_,
                                         target_high_level_side_speed_,
                                         target_high_level_yaw_speed_);
+        }
     }else if (target_high_level_mode_ == HIGH_LEVEL_MODE::FORCED_STAND)
     {
+        // Reset timer when entering forced stand mode directly
+        frozen_time_high_level_stop_motion_was_set_ = false;
         _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND,0,0,0,
                                     target_high_level_roll_angle_,
                                     target_high_level_pitch_angle_,

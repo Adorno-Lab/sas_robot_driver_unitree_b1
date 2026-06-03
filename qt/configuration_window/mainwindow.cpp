@@ -252,8 +252,8 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
             max_read_vy_ = v(1);
 
 
-        VectorXd wf   = unitree_b1_driver_->get_filtered_high_level_angular_velocity().vec3();
-        VectorXd vf   = unitree_b1_driver_->get_filtered_high_level_linear_velocity().vec3();
+        VectorXd wf   = unitree_b1_driver_->get_high_level_angular_velocity().vec3();
+        VectorXd vf   = unitree_b1_driver_->get_high_level_linear_velocity().vec3();
 
 
         if (wf(2) > max_filtered_read_wz_)
