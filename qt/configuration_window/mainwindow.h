@@ -88,6 +88,14 @@ private:
     double target_side_speed_{0};
     double target_yaw_speed_{0};
 
+    double max_read_vx_{0};
+    double max_read_vy_{0};
+    double max_read_wz_{0};
+
+    double max_filtered_read_vx_{0};
+    double max_filtered_read_vy_{0};
+    double max_filtered_read_wz_{0};
+
     const double slider_factor_ = 100.0;
 
     QString pause_yellow_color_ = "background-color: #fcca03;";

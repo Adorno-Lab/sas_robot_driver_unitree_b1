@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1012</width>
-    <height>600</height>
+    <width>1057</width>
+    <height>624</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -522,7 +522,7 @@
      <rect>
       <x>810</x>
       <y>20</y>
-      <width>181</width>
+      <width>221</width>
       <height>41</height>
      </rect>
     </property>
@@ -535,12 +535,111 @@
      <rect>
       <x>810</x>
       <y>80</y>
-      <width>181</width>
+      <width>221</width>
       <height>41</height>
      </rect>
     </property>
     <property name="text">
      <string>Current_mode</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_led1_">
+    <property name="geometry">
+     <rect>
+      <x>50</x>
+      <y>500</y>
+      <width>31</width>
+      <height>26</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_led2_">
+    <property name="geometry">
+     <rect>
+      <x>190</x>
+      <y>500</y>
+      <width>31</width>
+      <height>26</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_led3_">
+    <property name="geometry">
+     <rect>
+      <x>340</x>
+      <y>500</y>
+      <width>31</width>
+      <height>26</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_max_read_vx_">
+    <property name="geometry">
+     <rect>
+      <x>90</x>
+      <y>500</y>
+      <width>65</width>
+      <height>27</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_max_read_vy_">
+    <property name="geometry">
+     <rect>
+      <x>220</x>
+      <y>500</y>
+      <width>65</width>
+      <height>27</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_max_read_wz_">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>500</y>
+      <width>65</width>
+      <height>27</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_max_filtered_read_vx_">
+    <property name="geometry">
+     <rect>
+      <x>90</x>
+      <y>530</y>
+      <width>65</width>
+      <height>27</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_max_filtered_read_vy_">
+    <property name="geometry">
+     <rect>
+      <x>220</x>
+      <y>530</y>
+      <width>65</width>
+      <height>27</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_max_filtered_read_wz_">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>530</y>
+      <width>65</width>
+      <height>27</height>
+     </rect>
     </property>
    </widget>
   </widget>
@@ -549,8 +648,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1012</width>
-     <height>27</height>
+     <width>1057</width>
+     <height>23</height>
     </rect>
    </property>
   </widget>

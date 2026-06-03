@@ -60,7 +60,13 @@ MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
                                      ui->doubleSpinBox_read_roll_,
                                      ui->doubleSpinBox_read_pitch_,
                                      ui->doubleSpinBox_read_yaw_,
-                                     ui->doubleSpinBox_read_height_
+                                     ui->doubleSpinBox_read_height_,
+                                     ui->doubleSpinBox_max_read_vx_,
+                                     ui->doubleSpinBox_max_read_vy_,
+                                     ui->doubleSpinBox_max_read_wz_,
+                                    ui->doubleSpinBox_max_filtered_read_vx_,
+                                    ui->doubleSpinBox_max_filtered_read_vy_,
+                                    ui->doubleSpinBox_max_filtered_read_wz_,
                                      });
 
 
@@ -236,9 +242,58 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
         VectorXd w = unitree_b1_driver_->get_high_level_angular_velocity().vec3();
         VectorXd v   = unitree_b1_driver_->get_high_level_linear_velocity().vec3();
 
+
+
+        if (w(2) > max_read_vx_)
+            max_read_wz_ = w(2);
+        if (v(0) > max_read_vx_)
+            max_read_vx_ = v(0);
+        if (v(1) > max_read_vy_)
+            max_read_vy_ = v(1);
+
+
+        VectorXd wf   = unitree_b1_driver_->get_filtered_high_level_angular_velocity().vec3();
+        VectorXd vf   = unitree_b1_driver_->get_filtered_high_level_linear_velocity().vec3();
+
+
+        if (wf(2) > max_filtered_read_wz_)
+            max_filtered_read_wz_ = wf(2);
+
+        if (vf(0) > max_filtered_read_vx_)
+            max_filtered_read_vx_ = vf(0);
+
+        if (v(1) > max_filtered_read_vy_)
+            max_filtered_read_vy_ = v(1);
+
+        ui->doubleSpinBox_max_read_vx_->setValue(max_read_vx_);
+        ui->doubleSpinBox_max_read_vy_->setValue(max_read_vy_);
+        ui->doubleSpinBox_max_read_wz_->setValue(max_read_wz_);
+
+        ui->doubleSpinBox_max_filtered_read_vx_->setValue(max_filtered_read_vx_);
+        ui->doubleSpinBox_max_filtered_read_vy_->setValue(max_filtered_read_vy_);
+        ui->doubleSpinBox_max_filtered_read_wz_->setValue(max_filtered_read_wz_);
+
+
         ui->doubleSpinBox_read_vx_->setValue(v(0));
         ui->doubleSpinBox_read_vy_->setValue(v(1));
         ui->doubleSpinBox_read_wz_->setValue(w(2));
+
+        double speed_threshold_to_force_stand_mode_ = 0.2;
+
+        if (std::abs(w(2)) >= speed_threshold_to_force_stand_mode_)
+        {
+            ui->pushButton_led1_->setStyleSheet("background-color: #d41717;");
+        }
+
+        if (std::abs(v(0))>= speed_threshold_to_force_stand_mode_)
+        {
+            ui->pushButton_led2_->setStyleSheet("background-color: #d41717;");
+        }
+
+        if (std::abs(v(1))>= speed_threshold_to_force_stand_mode_)
+        {
+            ui->pushButton_led3_->setStyleSheet("background-color: #d41717;");
+        }
 
 
         ui->progressBar_battery->setValue(unitree_b1_driver_->get_state_of_charge());
@@ -257,6 +312,10 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
         ui->doubleSpinBox_read_yaw_->setValue(rpy.z());
 
         ui->doubleSpinBox_read_height_->setValue(unitree_b1_driver_->get_body_height());
+
+
+
+
 
 
 
