@@ -234,7 +234,7 @@ private:
     double speed_threshold_to_force_stand_mode_ = 0.15;
 
 
-
+    void _precheck_for_high_velocity_control();
     void _robot_control();
     void _robot_update();
     void _UDPRecv();

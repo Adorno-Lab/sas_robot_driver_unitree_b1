@@ -445,6 +445,7 @@ void DriverUnitreeB1::initialize()
                         _show_status();
                         impl_->loop_echo_state_->shutdown();
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                        _precheck_for_high_velocity_control();
                         impl_->loop_control_->start();
                         status_msg_ = "starting control loop.";
                         _show_status();
@@ -923,7 +924,14 @@ DriverUnitreeB1::HIGH_LEVEL_MODE DriverUnitreeB1::get_current_high_mode() const
     return current_high_level_mode_;
 }
 
-
+void DriverUnitreeB1::_precheck_for_high_velocity_control()
+{
+    if (current_high_level_mode_ == HIGH_LEVEL_MODE::POSITION_STAND_UP)
+    {
+       // _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND,0,0,0);
+       // std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    }
+}
 
 
 /**
