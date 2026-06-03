@@ -161,6 +161,9 @@
      <item>
       <widget class="QDoubleSpinBox" name="doubleSpinBox_roll_"/>
      </item>
+     <item>
+      <widget class="QDoubleSpinBox" name="doubleSpinBox_read_roll_"/>
+     </item>
     </layout>
    </widget>
    <widget class="QWidget" name="horizontalLayoutWidget_5">
@@ -195,6 +198,9 @@
      </item>
      <item>
       <widget class="QDoubleSpinBox" name="doubleSpinBox_pitch_"/>
+     </item>
+     <item>
+      <widget class="QDoubleSpinBox" name="doubleSpinBox_read_pitch_"/>
      </item>
     </layout>
    </widget>
@@ -231,6 +237,9 @@
      <item>
       <widget class="QDoubleSpinBox" name="doubleSpinBox_yaw_"/>
      </item>
+     <item>
+      <widget class="QDoubleSpinBox" name="doubleSpinBox_read_yaw_"/>
+     </item>
     </layout>
    </widget>
    <widget class="QLabel" name="elapsed_time_label_">
@@ -256,6 +265,9 @@
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QDoubleSpinBox" name="doubleSpinBox_read_height_"/>
+     </item>
      <item>
       <widget class="QDoubleSpinBox" name="doubleSpinBox_height_delta_"/>
      </item>
@@ -505,6 +517,32 @@
      </property>
     </widget>
    </widget>
+   <widget class="QPushButton" name="pushButton_target_mode_">
+    <property name="geometry">
+     <rect>
+      <x>810</x>
+      <y>20</y>
+      <width>181</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Target_mode</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_current_mode_">
+    <property name="geometry">
+     <rect>
+      <x>810</x>
+      <y>80</y>
+      <width>181</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Current_mode</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -512,7 +550,7 @@
      <x>0</x>
      <y>0</y>
      <width>1012</width>
-     <height>23</height>
+     <height>27</height>
     </rect>
    </property>
   </widget>

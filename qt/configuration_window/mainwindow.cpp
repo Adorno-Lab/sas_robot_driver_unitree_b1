@@ -239,6 +239,14 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
 
         ui->progressBar_battery->setValue(unitree_b1_driver_->get_state_of_charge());
 
+        std::string current_mode = unitree_b1_driver_->high_level_mode_to_string(
+                                   unitree_b1_driver_->get_current_high_mode());
+        std::string target_mode  = unitree_b1_driver_->high_level_mode_to_string(
+                                   unitree_b1_driver_->get_target_high_mode());
+
+        ui->pushButton_target_mode_->setText(QString(target_mode.c_str()));
+        ui->pushButton_current_mode_->setText(QString(current_mode.c_str()));
+
     }
 }
 

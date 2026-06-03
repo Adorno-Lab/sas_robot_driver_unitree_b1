@@ -63,7 +63,7 @@ private:
     const std::unordered_map<HIGH_LEVEL_MODE, uint8_t> high_level_mode_map_ =
         {
         {HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND,      0},
-        {HIGH_LEVEL_MODE::FORCED_STAND,             1},
+        {HIGH_LEVEL_MODE::FORCED_STAND,            1},
         {HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 2},
         {HIGH_LEVEL_MODE::PATH_MODE_WALKING,       4},
         {HIGH_LEVEL_MODE::POSITION_STAND_DOWN,     5},
@@ -74,7 +74,7 @@ private:
     const std::unordered_map<uint8_t, HIGH_LEVEL_MODE> high_level_mode_map_inv_ =
         {
         {0, HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND     },
-        {1, HIGH_LEVEL_MODE::FORCED_STAND            },
+        {1, HIGH_LEVEL_MODE::FORCED_STAND           },
         {2, HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING},
         {4, HIGH_LEVEL_MODE::PATH_MODE_WALKING      },
         {5, HIGH_LEVEL_MODE::POSITION_STAND_DOWN    },
@@ -320,6 +320,11 @@ public:
     unsigned long long get_motion_time() const;
 
     void request_change_in_high_level_control(const HIGH_LEVEL_MODE& mode);
+
+    HIGH_LEVEL_MODE get_current_high_mode() const;
+    HIGH_LEVEL_MODE get_target_high_mode() const;
+
+    std::string high_level_mode_to_string(const HIGH_LEVEL_MODE& mode) const;
 
 
 

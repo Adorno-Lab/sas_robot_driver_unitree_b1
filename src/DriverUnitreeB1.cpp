@@ -893,6 +893,31 @@ void DriverUnitreeB1::request_change_in_high_level_control(const HIGH_LEVEL_MODE
     }
 }
 
+string DriverUnitreeB1::high_level_mode_to_string(const HIGH_LEVEL_MODE &mode) const
+{
+    switch (mode) {
+    case HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND: return "IDLE_DEFAULT_STAND";
+    case HIGH_LEVEL_MODE::FORCED_STAND: return "FORCED_STAND";
+    case HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING: return "TARGET_VELOCITY_WALKING";
+    case HIGH_LEVEL_MODE::PATH_MODE_WALKING: return "PATH_MODE_WALKING";
+    case HIGH_LEVEL_MODE::POSITION_STAND_DOWN: return "POSITION_STAND_DOWN";
+    case HIGH_LEVEL_MODE::POSITION_STAND_UP: return "POSITION_STAND_UP";
+    case HIGH_LEVEL_MODE::DAMPING_MODE: return "DAMPING_MODE";
+    case HIGH_LEVEL_MODE::RECOVERY_STAND: return "RECOVERY_STAND";
+    default: return "UNKNOWN";
+    }
+}
+
+DriverUnitreeB1::HIGH_LEVEL_MODE DriverUnitreeB1::get_target_high_mode() const
+{
+    return target_high_level_mode_;
+}
+
+DriverUnitreeB1::HIGH_LEVEL_MODE DriverUnitreeB1::get_current_high_mode() const
+{
+    return current_high_level_mode_;
+}
+
 
 
 
