@@ -174,6 +174,7 @@ private:
     DQ IMU_orientation_{1};
     DQ IMU_gyroscope_{0};
     DQ IMU_accelerometer_{0};
+    Vector3d IMU_rpy_ = Vector3d::Zero();
 
     DQ odometry_position_{0};
     double body_height_{0};
@@ -286,6 +287,7 @@ public:
     VectorXd get_joint_temperatures(const BRANCH& branch) const;
 
     DQ get_IMU_orientation() const;
+    Vector3d get_IMU_rpy_angles() const;
     DQ get_IMU_gyroscope() const;
     DQ get_IMU_accelerometer() const;
     DQ get_IMU_pose() const;

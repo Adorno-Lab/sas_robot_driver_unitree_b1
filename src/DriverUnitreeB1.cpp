@@ -646,6 +646,11 @@ DQ DriverUnitreeB1::get_IMU_orientation() const
     return IMU_orientation_;
 }
 
+Vector3d DriverUnitreeB1::get_IMU_rpy_angles() const
+{
+    return IMU_rpy_;
+}
+
 /**
  * @brief DriverUnitreeB1::get_IMU_gyroscope returns the IMU-based estimated velocities.
  * @return
@@ -1329,6 +1334,8 @@ void DriverUnitreeB1::_update_IMU_data(const T &state)
                           state.imu.quaternion.at(1),
                           state.imu.quaternion.at(2),
                           state.imu.quaternion.at(3)).normalize();
+
+    IMU_rpy_ << state.imu.rpy.at(0), state.imu.rpy.at(1), state.imu.rpy.at(2);
 
     IMU_gyroscope_ =  state.imu.gyroscope.at(0)*i_+
                       state.imu.gyroscope.at(1)*j_+

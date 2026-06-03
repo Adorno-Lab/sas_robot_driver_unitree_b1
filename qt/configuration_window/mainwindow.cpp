@@ -50,13 +50,17 @@ MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
     ui->dial_change_operation_high_level_mode_->setRange(0,1);
     ui->dial_change_operation_high_level_mode_->setValue(0);
 
-    ui->doubleSpinBox_read_vx_->setRange(-5,5);
-    ui->doubleSpinBox_read_vy_->setRange(-5,5);
-    ui->doubleSpinBox_read_wz_->setRange(-5,5);
+    //ui->doubleSpinBox_read_vx_->setRange(-5,5);
+    //ui->doubleSpinBox_read_vy_->setRange(-5,5);
+    //ui->doubleSpinBox_read_wz_->setRange(-5,5);
 
     _config_spin_boxes_as_read_only({ui->doubleSpinBox_read_vx_,
                                      ui->doubleSpinBox_read_vy_,
-                                     ui->doubleSpinBox_read_wz_
+                                     ui->doubleSpinBox_read_wz_,
+                                     ui->doubleSpinBox_read_roll_,
+                                     ui->doubleSpinBox_read_pitch_,
+                                     ui->doubleSpinBox_read_yaw_,
+                                     ui->doubleSpinBox_read_height_
                                      });
 
 
@@ -247,6 +251,16 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
         ui->pushButton_target_mode_->setText(QString(target_mode.c_str()));
         ui->pushButton_current_mode_->setText(QString(current_mode.c_str()));
 
+        Vector3d rpy = unitree_b1_driver_->get_IMU_rpy_angles();
+        ui->doubleSpinBox_read_roll_->setValue(rpy.x());
+        ui->doubleSpinBox_read_pitch_->setValue(rpy.y());
+        ui->doubleSpinBox_read_yaw_->setValue(rpy.z());
+
+        ui->doubleSpinBox_read_height_->setValue(unitree_b1_driver_->get_body_height());
+
+
+
+
     }
 }
 
@@ -342,6 +356,7 @@ void MainWindow::_config_spin_boxes_as_read_only(const std::vector<QDoubleSpinBo
         spinboxes.at(i)->setButtonSymbols(QAbstractSpinBox::NoButtons);
         spinboxes.at(i)->setAlignment(Qt::AlignCenter); // Optional: center align
         spinboxes.at(i)->setDecimals(2);  // Set precision to 3 decimals
+        spinboxes.at(i)->setRange(-500,500);
     }
 }
 
