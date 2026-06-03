@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>920</width>
+    <width>1012</width>
     <height>600</height>
    </rect>
   </property>
@@ -17,9 +17,9 @@
    <widget class="QWidget" name="horizontalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>60</x>
-      <y>269</y>
-      <width>301</width>
+      <x>20</x>
+      <y>290</y>
+      <width>421</width>
       <height>61</height>
      </rect>
     </property>
@@ -47,14 +47,17 @@
      <item>
       <widget class="QDoubleSpinBox" name="doubleSpinBox_forward_speed_"/>
      </item>
+     <item>
+      <widget class="QDoubleSpinBox" name="doubleSpinBox_read_vx_"/>
+     </item>
     </layout>
    </widget>
    <widget class="QWidget" name="horizontalLayoutWidget_2">
     <property name="geometry">
      <rect>
-      <x>60</x>
-      <y>340</y>
-      <width>301</width>
+      <x>20</x>
+      <y>361</y>
+      <width>421</width>
       <height>61</height>
      </rect>
     </property>
@@ -82,14 +85,17 @@
      <item>
       <widget class="QDoubleSpinBox" name="doubleSpinBox_side_speed_"/>
      </item>
+     <item>
+      <widget class="QDoubleSpinBox" name="doubleSpinBox_read_vy_"/>
+     </item>
     </layout>
    </widget>
    <widget class="QWidget" name="horizontalLayoutWidget_3">
     <property name="geometry">
      <rect>
-      <x>60</x>
-      <y>410</y>
-      <width>301</width>
+      <x>20</x>
+      <y>431</y>
+      <width>421</width>
       <height>61</height>
      </rect>
     </property>
@@ -117,14 +123,17 @@
      <item>
       <widget class="QDoubleSpinBox" name="doubleSpinBox_yaw_speed_"/>
      </item>
+     <item>
+      <widget class="QDoubleSpinBox" name="doubleSpinBox_read_wz_"/>
+     </item>
     </layout>
    </widget>
    <widget class="QWidget" name="horizontalLayoutWidget_4">
     <property name="geometry">
      <rect>
-      <x>490</x>
-      <y>269</y>
-      <width>301</width>
+      <x>470</x>
+      <y>289</y>
+      <width>321</width>
       <height>61</height>
      </rect>
     </property>
@@ -157,9 +166,9 @@
    <widget class="QWidget" name="horizontalLayoutWidget_5">
     <property name="geometry">
      <rect>
-      <x>490</x>
-      <y>340</y>
-      <width>301</width>
+      <x>470</x>
+      <y>360</y>
+      <width>321</width>
       <height>61</height>
      </rect>
     </property>
@@ -192,9 +201,9 @@
    <widget class="QWidget" name="horizontalLayoutWidget_6">
     <property name="geometry">
      <rect>
-      <x>490</x>
-      <y>410</y>
-      <width>301</width>
+      <x>470</x>
+      <y>430</y>
+      <width>321</width>
       <height>61</height>
      </rect>
     </property>
@@ -240,8 +249,8 @@
    <widget class="QWidget" name="verticalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>820</x>
-      <y>230</y>
+      <x>890</x>
+      <y>240</y>
       <width>81</width>
       <height>271</height>
      </rect>
@@ -275,9 +284,9 @@
    <widget class="QGroupBox" name="groupBox">
     <property name="geometry">
      <rect>
-      <x>490</x>
+      <x>470</x>
       <y>10</y>
-      <width>301</width>
+      <width>321</width>
       <height>251</height>
      </rect>
     </property>
@@ -340,10 +349,10 @@
    <widget class="QGroupBox" name="groupBox_2">
     <property name="geometry">
      <rect>
-      <x>40</x>
+      <x>20</x>
       <y>10</y>
-      <width>441</width>
-      <height>251</height>
+      <width>421</width>
+      <height>261</height>
      </rect>
     </property>
     <property name="title">
@@ -404,8 +413,8 @@
     <widget class="QDial" name="dial_select_robot_">
      <property name="geometry">
       <rect>
-       <x>270</x>
-       <y>10</y>
+       <x>230</x>
+       <y>30</y>
        <width>101</width>
        <height>121</height>
       </rect>
@@ -420,8 +429,8 @@
     <widget class="QLabel" name="label_10">
      <property name="geometry">
       <rect>
-       <x>250</x>
-       <y>110</y>
+       <x>210</x>
+       <y>130</y>
        <width>51</width>
        <height>22</height>
       </rect>
@@ -433,8 +442,8 @@
     <widget class="QLabel" name="label_12">
      <property name="geometry">
       <rect>
-       <x>350</x>
-       <y>110</y>
+       <x>310</x>
+       <y>130</y>
        <width>51</width>
        <height>22</height>
       </rect>
@@ -446,8 +455,8 @@
     <widget class="QLabel" name="label_11">
      <property name="geometry">
       <rect>
-       <x>270</x>
-       <y>10</y>
+       <x>230</x>
+       <y>30</y>
        <width>111</width>
        <height>22</height>
       </rect>
@@ -459,8 +468,8 @@
     <widget class="QLabel" name="label_ip_">
      <property name="geometry">
       <rect>
-       <x>210</x>
-       <y>140</y>
+       <x>170</x>
+       <y>170</y>
        <width>201</width>
        <height>22</height>
       </rect>
@@ -482,6 +491,19 @@
       <string>Status:</string>
      </property>
     </widget>
+    <widget class="QProgressBar" name="progressBar_battery">
+     <property name="geometry">
+      <rect>
+       <x>290</x>
+       <y>220</y>
+       <width>118</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="value">
+      <number>0</number>
+     </property>
+    </widget>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -489,8 +511,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>920</width>
-     <height>27</height>
+     <width>1012</width>
+     <height>23</height>
     </rect>
    </property>
   </widget>

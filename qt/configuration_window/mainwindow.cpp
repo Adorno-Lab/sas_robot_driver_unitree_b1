@@ -50,7 +50,14 @@ MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
     ui->dial_change_operation_high_level_mode_->setRange(0,1);
     ui->dial_change_operation_high_level_mode_->setValue(0);
 
-    //ui->dial_select_robot_->set
+    ui->doubleSpinBox_read_vx_->setRange(-5,5);
+    ui->doubleSpinBox_read_vy_->setRange(-5,5);
+    ui->doubleSpinBox_read_wz_->setRange(-5,5);
+
+    _config_spin_boxes_as_read_only({ui->doubleSpinBox_read_vx_,
+                                     ui->doubleSpinBox_read_vy_,
+                                     ui->doubleSpinBox_read_wz_
+                                     });
 
 
     ui->pushButton_connect_->setEnabled(false);
@@ -171,7 +178,7 @@ void MainWindow::update_dial_select_robot()
         configuration_.ROBOT_IP = "192.168.8.226";
         configuration_.LIE_DOWN_ROBOT_WHEN_DEINITIALIZE = false;
         configuration_.ROBOT_PORT = 8082;
-        configuration_.FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO = true;
+        configuration_.FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO = true; //true
         ui->label_ip_->setText(QString(("IP: "+configuration_.ROBOT_IP).c_str()));
         ui->pushButton_connect_->setEnabled(true);
     }
@@ -221,6 +228,16 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
 
         unitree_b1_driver_->set_high_level_speed(target_forward_speed_, target_side_speed_, target_yaw_speed_);
         unitree_b1_driver_->set_forced_stand_commands(target_roll_, target_pitch_, target_yaw_, target_height_);
+
+        VectorXd w = unitree_b1_driver_->get_high_level_angular_velocity().vec3();
+        VectorXd v   = unitree_b1_driver_->get_high_level_linear_velocity().vec3();
+
+        ui->doubleSpinBox_read_vx_->setValue(v(0));
+        ui->doubleSpinBox_read_vy_->setValue(v(1));
+        ui->doubleSpinBox_read_wz_->setValue(w(2));
+
+
+        ui->progressBar_battery->setValue(unitree_b1_driver_->get_state_of_charge());
 
     }
 }
@@ -310,7 +327,15 @@ void MainWindow::_disconnect()
         unitree_b1_driver_->disconnect();
 }
 
-
+void MainWindow::_config_spin_boxes_as_read_only(const std::vector<QDoubleSpinBox *> &spinboxes)
+{
+    for (size_t i = 0; i < spinboxes.size(); ++i) {
+        spinboxes.at(i)->setReadOnly(true);
+        spinboxes.at(i)->setButtonSymbols(QAbstractSpinBox::NoButtons);
+        spinboxes.at(i)->setAlignment(Qt::AlignCenter); // Optional: center align
+        spinboxes.at(i)->setDecimals(2);  // Set precision to 3 decimals
+    }
+}
 
 
 

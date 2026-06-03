@@ -227,7 +227,7 @@ private:
     VectorXd temperatureRR_ = (VectorXd(3) << 0,0,0).finished();
     //--------------------------------------------------------------
     //--------------------------------------------------------------
-    double speed_threshold_to_force_stand_mode_ = 0.1;
+    double speed_threshold_to_force_stand_mode_ = 0.15;
 
 
 

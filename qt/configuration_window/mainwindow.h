@@ -24,6 +24,7 @@
 
 #pragma once
 #include <QMainWindow>
+#include <qspinbox.h>
 #include "DriverUnitreeB1.hpp"
 
 QT_BEGIN_NAMESPACE
@@ -97,6 +98,8 @@ private:
     void _initialize();
     void _deinitialize();
     void _disconnect();
+
+    void _config_spin_boxes_as_read_only(const std::vector<QDoubleSpinBox *> &spinboxes);
 
 
 

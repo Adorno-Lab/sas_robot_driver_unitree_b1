@@ -969,12 +969,17 @@ void DriverUnitreeB1::_stop_robot_in_high_level_motion()
         double vy = vec_linear_velocity(1);
         // It the robot velocities are higher than a threshold, the FORCE_STAND mode could not stop the robot in some firmware versions.
         // Therefore, I first use TARGET_VELOCITY_WALKING to stop the robot and FORCE_STAND to stop the gait.
+        //std::cout<<"vel_x: "<<vx<<" vel_y: "<<vy<<" vel_w: "<<w<<std::endl;
         if (std::abs(w) >= speed_threshold_to_force_stand_mode_ ||
             std::abs(vx)>= speed_threshold_to_force_stand_mode_ ||
             std::abs(vy)>= speed_threshold_to_force_stand_mode_)
+        {
             _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0,0.0,0.0);
+        }
         else
+        {
             _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
+        }
     }
     else
         _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0,0.0,0.0);
