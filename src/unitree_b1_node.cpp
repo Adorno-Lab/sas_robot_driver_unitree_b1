@@ -122,6 +122,17 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
         std::bind(&RobotDriverUnitreeB1::_callback_target_twist, this, std::placeholders::_1)
         );
 
+    subscriber_stand_commands_ = node_->create_subscription<std_msgs::msg::Float64MultiArray>(
+        topic_prefix_ + "/set/stand_commands",
+        1,
+        std::bind(&RobotDriverUnitreeB1::_callback_stand_commands, this, std::placeholders::_1)
+        );
+
+    subscriber_mode_switch_ = node_->create_subscription<std_msgs::msg::Int32MultiArray>(
+        topic_prefix_ + "/set/mode",
+        1,
+        std::bind(&RobotDriverUnitreeB1::_callback_mode_switch, this, std::placeholders::_1)
+        );
 
     subscriber_watchdog_trigger_ = node_->create_subscription<sas_msgs::msg::WatchdogTrigger>(
         topic_prefix_ + "/set/watchdog_trigger", 1,
@@ -279,14 +290,41 @@ bool RobotDriverUnitreeB1::_should_shutdown() const
     return (*st_break_loops_);
 }
 
+
+/**
+ * @brief Applies target velocities from the most recent subscriber message.
+ *
+ * Extracts linear.x, linear.y, and angular.z from target_twist_ and sends
+ * them to the Unitree B1 driver. Currently uses only 3 DoF (vx, vy, wz)
+ * for high-level velocity control.
+ *
+ * @note Only vx (index 3), vy (index 4), and wz (index 2) are used.
+ *       Other twist components (wx, wy, vz) are ignored.
+ */
 void RobotDriverUnitreeB1::_set_target_velocities_from_subscriber()
 {
-    if (new_target_velocities_available_)
+    if (new_target_twist_available_)
     {
-        impl_->unitree_b1_driver_->set_high_level_speed(target_holonomic_velocities_(0),
-                                                        target_holonomic_velocities_(1),
-                                                        target_holonomic_velocities_(2));
-        new_target_velocities_available_ = false;
+        //    0  1  2  3  4  5
+        //   wx wy wz vx vy vz
+        double vx = target_twist_(3);
+        double vy = target_twist_(4);
+        double wz = target_twist_(2);
+
+        impl_->unitree_b1_driver_->set_high_level_speed(vx,vy,wz);
+        new_target_twist_available_ = false;
+    }
+}
+
+void RobotDriverUnitreeB1::_set_target_stand_commands_from_subscriber()
+{
+    if (new_stand_commands_available_)
+    {
+        impl_->unitree_b1_driver_->set_forced_stand_commands(target_stand_commands_(0),
+                                                             target_stand_commands_(1),
+                                                             target_stand_commands_(2),
+                                                             target_stand_commands_(3));
+        new_stand_commands_available_ = false;
     }
 }
 
@@ -346,6 +384,7 @@ void RobotDriverUnitreeB1::control_loop()
             _read_battery_state();
             _read_twist_state_and_publish();
             _set_target_velocities_from_subscriber();
+            _set_target_stand_commands_from_subscriber();
 
 
             if (is_watchdog_enabled())
@@ -397,12 +436,41 @@ void RobotDriverUnitreeB1::control_loop()
     }
 }
 
+
+/**
+ * @brief Callback for legacy holonomic velocity commands (Float64MultiArray).
+ *
+ * Converts the legacy format [vx, vy, wz] to the new twist format:
+ * - Index 0: vx -> linear.x
+ * - Index 1: vy -> linear.y
+ * - Index 2: wz -> angular.z
+ *
+ * @param msg Float64MultiArray containing [vx, vy, wz]
+ * @note Kept for backward compatibility. New code should use target_twist topic.
+ */
 void RobotDriverUnitreeB1::_callback_target_holonomic_velocities(const std_msgs::msg::Float64MultiArray &msg)
 {
-    target_holonomic_velocities_  = std_vector_double_to_vectorxd(msg.data);
-    new_target_velocities_available_ = true;
+    VectorXd target_holonomic_velocities  = std_vector_double_to_vectorxd(msg.data);
+    //new_target_velocities_available_ = true;
+    new_target_twist_available_ = true;
+    target_twist_ <<0,                                // Wx
+                    0,                                // Wy
+                    target_holonomic_velocities(2),   // Wz
+                    target_holonomic_velocities(0),   // Vx
+                    target_holonomic_velocities(1),   // Vy
+                    0;                                // Vz
 }
 
+
+
+/**
+ * @brief Callback for twist velocity commands (geometry_msgs::TwistStamped).
+ *
+ * Directly maps ROS TwistStamped message to internal target_twist_ vector:
+ * [angular.x, angular.y, angular.z, linear.x, linear.y, linear.z]
+ *
+ * @param msg TwistStamped message containing desired angular and linear velocities
+ */
 void RobotDriverUnitreeB1::_callback_target_twist(const geometry_msgs::msg::TwistStamped& msg)
 {
     target_twist_ <<msg.twist.angular.x,
@@ -413,6 +481,47 @@ void RobotDriverUnitreeB1::_callback_target_twist(const geometry_msgs::msg::Twis
                     msg.twist.linear.z;
 
     new_target_twist_available_ = true;
+}
+
+void RobotDriverUnitreeB1::_callback_stand_commands(const std_msgs::msg::Float64MultiArray &msg)
+{
+    target_stand_commands_  = std_vector_double_to_vectorxd(msg.data);
+    new_stand_commands_available_ = true;
+}
+
+/**
+ * @brief Callback for switching between high-level modes.
+ *
+ * Message format: [mode]
+ * - mode: 0=IDLE_DEFAULT_STAND, 1=FORCED_STAND, 2=TARGET_VELOCITY_WALKING,
+ *         4=PATH_MODE_WALKING, 5=POSITION_STAND_DOWN, 6=POSITION_STAND_UP,
+ *         7=DAMPING_MODE, 9=RECOVERY_STAND
+ *
+ * Supported modes: IDLE_DEFAULT_STAND, FORCED_STAND, TARGET_VELOCITY_WALKING.
+ *
+ * @param msg Int32MultiArray containing a single element: target mode
+ */
+void RobotDriverUnitreeB1::_callback_mode_switch(const std_msgs::msg::Int32MultiArray& msg)
+{
+    if (msg.data.size() >= 1)
+    {
+        auto target_mode = static_cast<DriverUnitreeB1::HIGH_LEVEL_MODE>(msg.data[0]);
+        auto current_target_mode = impl_->unitree_b1_driver_->get_target_high_mode();
+
+        // Only request if mode is different
+        if (target_mode != current_target_mode)
+        {
+            impl_->unitree_b1_driver_->request_change_in_high_level_control(target_mode);
+
+            RCLCPP_INFO(node_->get_logger(), "Mode switched to: %s",
+                        impl_->unitree_b1_driver_->high_level_mode_to_string(target_mode).c_str());
+        }
+        else
+        {
+            RCLCPP_DEBUG(node_->get_logger(), "Ignoring mode switch to same mode: %s",
+                         impl_->unitree_b1_driver_->high_level_mode_to_string(target_mode).c_str());
+        }
+    }
 }
 
 void RobotDriverUnitreeB1::_callback_shutdown_signal_(const sas_msgs::msg::Bool &msg)

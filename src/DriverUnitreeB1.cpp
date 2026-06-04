@@ -788,7 +788,9 @@ void DriverUnitreeB1::set_high_level_forward_and_yaw_speed(const double &forward
  * @param side_speed  The desired side speed.
  * @param yaw_speed The desired yaw speed.
  */
-void DriverUnitreeB1::set_high_level_speed(const double &forward_speed, const double &side_speed, const double &yaw_speed)
+void DriverUnitreeB1::set_high_level_speed(const double &forward_speed,
+                                           const double &side_speed,
+                                           const double &yaw_speed)
 {
     target_high_level_forward_speed_ = forward_speed;
     target_high_level_side_speed_ = side_speed;

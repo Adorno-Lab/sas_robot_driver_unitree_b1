@@ -93,15 +93,26 @@ private:
 
     //----------------Deprecated subscription to command the robot in walking mode--------------------------//
     Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscriber_target_holonomic_velocities_;
-    VectorXd target_holonomic_velocities_ = VectorXd::Zero(3);
+    //VectorXd target_holonomic_velocities_ = VectorXd::Zero(3);
     void _callback_target_holonomic_velocities(const std_msgs::msg::Float64MultiArray& msg);
-    bool new_target_velocities_available_{false};
+    //bool new_target_velocities_available_{false};
     //-------------------------------------------------------------------------------------------------------//
 
     Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr subscriber_target_twist_;
     VectorXd target_twist_ = VectorXd::Zero(6);
     void _callback_target_twist(const geometry_msgs::msg::TwistStamped& msg);
-    bool new_target_twist_available_{true};
+    bool new_target_twist_available_{false};
+
+    //-------------------------------------------------------------------------------------------------------//
+    Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscriber_stand_commands_;
+    void _callback_stand_commands(const std_msgs::msg::Float64MultiArray& msg);
+    bool new_stand_commands_available_{false};
+    VectorXd target_stand_commands_ = VectorXd::Zero(4);
+    //-------------------------------------------------------------------------------------------------------//
+
+    Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr subscriber_mode_switch_;
+    void _callback_mode_switch(const std_msgs::msg::Int32MultiArray& msg);
+    //-------------------------------------------------------------------------------------------------------//
 
     Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_shutdown_signal_;
     void _callback_shutdown_signal_(const sas_msgs::msg::Bool& msg);
@@ -128,7 +139,7 @@ private:
     double watchdog_period_;
     double watchdog_period_in_seconds_;
     double watchdog_maximum_acceptable_delay_in_seconds_;
-
+    //--------------------------------------------------------------------------------------
 
 
     std::mutex mutex_watchdog_;
@@ -146,6 +157,7 @@ protected:
     void _read_battery_state();
     bool _should_shutdown() const;
     void _set_target_velocities_from_subscriber();
+    void _set_target_stand_commands_from_subscriber();
 
     void _watchdog_set_maximum_acceptable_delay(const double& max_acceptable_delay);
 
