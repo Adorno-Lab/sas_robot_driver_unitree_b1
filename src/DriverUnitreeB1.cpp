@@ -1068,18 +1068,36 @@ void DriverUnitreeB1::_stop_robot_in_high_level_motion()
 
 
 /**
- * @brief Transitions robot from POSITION_STAND_UP to FORCED_STAND before enabling walking.
+ * @brief Prepares robot for high-level motion by transitioning to FORCED_STAND mode.
  *
  * The robot cannot directly switch from POSITION_STAND_UP to walking mode. It must first
- * transition to FORCED_STAND and stabilize for PREPARATION_DURATION_MS before walking commands
- * are accepted.
+ * transition to FORCED_STAND and stabilize for PREPARATION_DURATION_MS.
  *
- * @note robot_is_prepared_for_high_level_motion_ is set true only after timer expires AND
- *       robot confirms it is in FORCED_STAND mode.
+ * Ready states (no preparation needed):
+ * - FORCED_STAND: Robot is already in stable stand mode
+ * - TARGET_VELOCITY_WALKING: Robot is already walking
+ *
+ * Transition sequence:
+ * - POSITION_STAND_UP → FORCED_STAND → stabilize → ready
+ *
+ * @throws std::runtime_error If robot is in an unsupported mode (e.g., DAMPING_MODE,
+ *         RECOVERY_STAND, IDLE_DEFAULT_STAND)
+ *
+ * @note DAMPING_MODE (lying down) requires transition: DAMPING_MODE → POSITION_STAND_UP →
+ *       FORCED_STAND → stabilize → ready (not yet implemented)
  */
 void DriverUnitreeB1::_prepare_the_robot_for_high_level_motion()
 {
     const int PREPARATION_DURATION_MS = 1500;
+
+    // If already in a valid motion mode, mark ready immediately
+    if (current_high_level_mode_ == HIGH_LEVEL_MODE::FORCED_STAND ||
+        current_high_level_mode_ == HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING)
+    {
+        robot_is_prepared_for_high_level_motion_ = true;
+        frozen_time_high_level_motion_preparation_was_set_ = false;
+        return;
+    }
 
     if (!frozen_time_high_level_motion_preparation_was_set_)
     {
@@ -1104,12 +1122,15 @@ void DriverUnitreeB1::_prepare_the_robot_for_high_level_motion()
     }
     else if (current_high_level_mode_ != HIGH_LEVEL_MODE::FORCED_STAND)
     {
-        // In unexpected mode - try to recover
-        _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
+        // TODO: Handle other states like DAMPING_MODE (lying down) -> POSITION_STAND_UP -> FORCED_STAND
+        throw std::runtime_error(
+            "DriverUnitreeB1::_prepare_the_robot_for_high_level_motion: Cannot prepare robot from current mode: " +
+            high_level_mode_to_string(current_high_level_mode_) +
+            ". Only POSITION_STAND_UP, FORCED_STAND, and TARGET_VELOCITY_WALKING are supported."
+            );
     }
     // If already in FORCED_STAND but timer not expired, just wait (do nothing)
 }
-
 
 /**
  * @brief Executes the appropriate high-level motion command based on the current target mode.

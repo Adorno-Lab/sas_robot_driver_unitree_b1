@@ -376,7 +376,9 @@ void MainWindow::_initialize()
     ui->pushButton_initialize_->setEnabled(false);
     ui->pushButton_deinitialize_->setEnabled(true);
     if (unitree_b1_driver_)
+    {
         unitree_b1_driver_->initialize();
+    }
 }
 
 void MainWindow::_deinitialize()
