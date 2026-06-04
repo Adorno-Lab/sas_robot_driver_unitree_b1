@@ -445,7 +445,6 @@ void DriverUnitreeB1::initialize()
                         _show_status();
                         impl_->loop_echo_state_->shutdown();
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                        _precheck_for_high_velocity_control();
                         impl_->loop_control_->start();
                         status_msg_ = "starting control loop.";
                         _show_status();
@@ -480,6 +479,12 @@ void DriverUnitreeB1::deinitialize()
     //wait to finish;
     finish_motion_to_deinitialize_ = true;
     std::cerr<<"Waiting to deinitialize..."<<std::endl;
+
+    if (current_status_ != STATUS::INITIALIZED)
+        // If the robot was not initialized, set this flag to break the
+        // while loop that waits for the robot to be ready.
+        the_robot_is_ready_to_deinitialize_ = true;
+
     while(!the_robot_is_ready_to_deinitialize_){
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     };
@@ -899,6 +904,14 @@ void DriverUnitreeB1::request_change_in_high_level_control(const HIGH_LEVEL_MODE
     }
 }
 
+
+/**
+ * @brief Converts HIGH_LEVEL_MODE enum to human-readable string.
+ * @param mode The high-level mode to convert
+ * @return String representation of the mode ("IDLE_DEFAULT_STAND", "FORCED_STAND",
+ *         "TARGET_VELOCITY_WALKING", "PATH_MODE_WALKING", "POSITION_STAND_DOWN",
+ *         "POSITION_STAND_UP", "DAMPING_MODE", "RECOVERY_STAND", or "UNKNOWN")
+ */
 string DriverUnitreeB1::high_level_mode_to_string(const HIGH_LEVEL_MODE &mode) const
 {
     switch (mode) {
@@ -914,24 +927,44 @@ string DriverUnitreeB1::high_level_mode_to_string(const HIGH_LEVEL_MODE &mode) c
     }
 }
 
+
+/**
+ * @brief Converts GAIT_TYPE enum to human-readable string.
+ * @param gait_type The gait type to convert
+ * @return String representation ("IDLE", "TROT", "TROT_RUNNING", "CLIMB_STAIR", "TROT_OBSTACLE", or "UNKNOWN")
+ */
+std::string DriverUnitreeB1::gait_type_to_string(const GAIT_TYPE& gait_type) const
+{
+    switch (gait_type) {
+    case GAIT_TYPE::IDLE: return "IDLE";
+    case GAIT_TYPE::TROT: return "TROT";
+    case GAIT_TYPE::TROT_RUNNING: return "TROT_RUNNING";
+    case GAIT_TYPE::CLIMB_STAIR: return "CLIMB_STAIR";
+    case GAIT_TYPE::TROT_OBSTACLE: return "TROT_OBSTACLE";
+    default: return "UNKNOWN";
+    }
+}
+
+
+/// Returns the target high-level control mode (what the driver is trying to achieve)
 DriverUnitreeB1::HIGH_LEVEL_MODE DriverUnitreeB1::get_target_high_mode() const
 {
     return target_high_level_mode_;
 }
 
+/// Returns the current high-level control mode reported by the robot
 DriverUnitreeB1::HIGH_LEVEL_MODE DriverUnitreeB1::get_current_high_mode() const
 {
     return current_high_level_mode_;
 }
 
-void DriverUnitreeB1::_precheck_for_high_velocity_control()
+/// Returns the current gait type (e.g., TROT, IDLE) reported by the robot
+DriverUnitreeB1::GAIT_TYPE DriverUnitreeB1::get_current_gait_type() const
 {
-    if (current_high_level_mode_ == HIGH_LEVEL_MODE::POSITION_STAND_UP)
-    {
-       // _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND,0,0,0);
-       // std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    }
+    return current_gait_type_;
 }
+
+
 
 
 /**
@@ -956,26 +989,31 @@ void DriverUnitreeB1::_robot_control()
         { //HIGH LEVEL
             if (!finish_motion_to_deinitialize_)
             {
-                if (!mode_change_in_progress_)
+                if (robot_is_prepared_for_high_level_motion_)
                 {
-                    _command_robot_in_high_level_motion();
+                    if (!mode_change_in_progress_)
+                    {
+                        _command_robot_in_high_level_motion();
+                    }else{
+                        if (!frozen_time_in_request_check_was_set_)
+                        {
+                            frozen_time_in_request_check_ = motiontime_;
+                            frozen_time_in_request_check_was_set_ = true;
+                        }
+                        const int deltatime = 2000; //This time is based on the Unitree Examples
+                        if (motiontime_>= frozen_time_in_request_check_ && motiontime_ < frozen_time_in_request_check_+deltatime)
+                        {
+                            _stop_robot_in_high_level_motion();
+                            //_command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
+                        }else
+                        {
+                           mode_change_in_progress_ = false;
+                           frozen_time_in_request_check_was_set_ = false;
+                           _command_robot_in_high_level_motion();
+                        }
+                    }
                 }else{
-                    if (!frozen_time_in_request_check_was_set_)
-                    {
-                        frozen_time_in_request_check_ = motiontime_;
-                        frozen_time_in_request_check_was_set_ = true;
-                    }
-                    const int deltatime = 2000; //This time is based on the Unitree Examples
-                    if (motiontime_>= frozen_time_in_request_check_ && motiontime_ < frozen_time_in_request_check_+deltatime)
-                    {
-                        _stop_robot_in_high_level_motion();
-                        //_command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
-                    }else
-                    {
-                       mode_change_in_progress_ = false;
-                       frozen_time_in_request_check_was_set_ = false;
-                       _command_robot_in_high_level_motion();
-                    }
+                    _prepare_the_robot_for_high_level_motion();
                 }
             }else{
                 _finish_high_level_motion();
@@ -1017,11 +1055,59 @@ void DriverUnitreeB1::_stop_robot_in_high_level_motion()
         }else
         {
             // During STOPPING_DURATION_MS, send zero walking commands
-            _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0, 0.0, 0.0);
+           // if (current_high_level_mode_ == HIGH_LEVEL_MODE::FORCED_STAND)
+           //     _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
+           // else
+                _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0, 0.0, 0.0);
         }
     }
     else
         _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0,0.0,0.0);
+}
+
+
+
+/**
+ * @brief Transitions robot from POSITION_STAND_UP to FORCED_STAND before enabling walking.
+ *
+ * The robot cannot directly switch from POSITION_STAND_UP to walking mode. It must first
+ * transition to FORCED_STAND and stabilize for PREPARATION_DURATION_MS before walking commands
+ * are accepted.
+ *
+ * @note robot_is_prepared_for_high_level_motion_ is set true only after timer expires AND
+ *       robot confirms it is in FORCED_STAND mode.
+ */
+void DriverUnitreeB1::_prepare_the_robot_for_high_level_motion()
+{
+    const int PREPARATION_DURATION_MS = 1500;
+
+    if (!frozen_time_high_level_motion_preparation_was_set_)
+    {
+        frozen_time_high_level_motion_preparation_ = motiontime_;
+        frozen_time_high_level_motion_preparation_was_set_ = true;
+    }
+
+    bool timer_expired = (motiontime_ - frozen_time_high_level_motion_preparation_) >= PREPARATION_DURATION_MS;
+
+    // Only mark ready if timer expired AND we're in FORCED_STAND
+    if (timer_expired && current_high_level_mode_ == HIGH_LEVEL_MODE::FORCED_STAND)
+    {
+        robot_is_prepared_for_high_level_motion_ = true;
+        frozen_time_high_level_motion_preparation_was_set_ = false;
+        return;
+    }
+
+    // If not ready yet, send appropriate commands
+    if (current_high_level_mode_ == HIGH_LEVEL_MODE::POSITION_STAND_UP)
+    {
+        _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
+    }
+    else if (current_high_level_mode_ != HIGH_LEVEL_MODE::FORCED_STAND)
+    {
+        // In unexpected mode - try to recover
+        _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
+    }
+    // If already in FORCED_STAND but timer not expired, just wait (do nothing)
 }
 
 
@@ -1275,6 +1361,8 @@ void DriverUnitreeB1::_update_data_from_robot_state()
                              impl_->high_state_.position.at(2)*k_;
         body_height_ = impl_->high_state_.bodyHeight;
         current_high_level_mode_ = high_level_mode_map_inv_.at(impl_->high_state_.mode);
+
+        current_gait_type_ = gait_type_map_inv_.at(impl_->high_state_.gaitType);
 
         high_level_linear_velocity_  = impl_->high_state_.velocity.at(0)*i_+
                                        impl_->high_state_.velocity.at(1)*j_;

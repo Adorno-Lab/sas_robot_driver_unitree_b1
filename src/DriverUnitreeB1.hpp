@@ -46,6 +46,15 @@ public:
         DAMPING_MODE,         // 7. damping mode
         RECOVERY_STAND        // 9. recovery stand
     };
+
+    enum class GAIT_TYPE{ //uint8_t gaitType;			   // 0.idle  1.trot  2.trot running  3.climb stair  4.trot obstacle
+        IDLE,
+        TROT,
+        TROT_RUNNING,
+        CLIMB_STAIR,
+        TROT_OBSTACLE
+    };
+
 protected:
     std::atomic_bool* st_break_loops_;
 private:
@@ -83,7 +92,19 @@ private:
         {9, HIGH_LEVEL_MODE::RECOVERY_STAND         },
         };
 
+
+     const std::unordered_map<uint8_t, GAIT_TYPE> gait_type_map_inv_ =
+        {
+        {0, GAIT_TYPE::IDLE},
+        {1, GAIT_TYPE::TROT},
+        {2, GAIT_TYPE::TROT_RUNNING},
+        {3, GAIT_TYPE::CLIMB_STAIR},
+        {3, GAIT_TYPE::TROT_OBSTACLE},
+        };
+
+
     HIGH_LEVEL_MODE current_high_level_mode_; // This information cames from the Unitree SDK High State
+    GAIT_TYPE current_gait_type_;// This information cames from the Unitree SDK High State
 
     HIGH_LEVEL_MODE target_high_level_mode_;
     bool mode_change_in_progress_;
@@ -102,6 +123,8 @@ private:
     void _stop_robot_in_high_level_motion();
     void _command_robot_in_high_level_motion();
     void _check_high_level_mode_request();
+    void _prepare_the_robot_for_high_level_motion();
+    bool robot_is_prepared_for_high_level_motion_{false};
 
 
 //void _set_high_level_mode(const HIGH_LEVEL_MODE& high_level_mode);
@@ -161,6 +184,9 @@ private:
 
     unsigned long long frozen_time_high_level_stop_motion_{0};
     bool frozen_time_high_level_stop_motion_was_set_{false};
+
+    unsigned long long frozen_time_high_level_motion_preparation_{0};
+    bool frozen_time_high_level_motion_preparation_was_set_{false};
 
     int state_of_charge_{0}; // Battery status (0-100%)
 
@@ -234,7 +260,7 @@ private:
     double speed_threshold_to_force_stand_mode_ = 0.15;
 
 
-    void _precheck_for_high_velocity_control();
+
     void _robot_control();
     void _robot_update();
     void _UDPRecv();
@@ -328,8 +354,10 @@ public:
 
     HIGH_LEVEL_MODE get_current_high_mode() const;
     HIGH_LEVEL_MODE get_target_high_mode() const;
+    GAIT_TYPE get_current_gait_type() const;
 
     std::string high_level_mode_to_string(const HIGH_LEVEL_MODE& mode) const;
+    std::string gait_type_to_string(const GAIT_TYPE& gait_type) const;
 
 
 

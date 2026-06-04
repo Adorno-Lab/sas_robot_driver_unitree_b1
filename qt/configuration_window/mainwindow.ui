@@ -612,34 +612,17 @@
      </rect>
     </property>
    </widget>
-   <widget class="QDoubleSpinBox" name="doubleSpinBox_max_filtered_read_vx_">
+   <widget class="QPushButton" name="pushButton_gait_type_">
     <property name="geometry">
      <rect>
-      <x>90</x>
-      <y>530</y>
-      <width>65</width>
-      <height>27</height>
+      <x>810</x>
+      <y>140</y>
+      <width>221</width>
+      <height>41</height>
      </rect>
     </property>
-   </widget>
-   <widget class="QDoubleSpinBox" name="doubleSpinBox_max_filtered_read_vy_">
-    <property name="geometry">
-     <rect>
-      <x>220</x>
-      <y>530</y>
-      <width>65</width>
-      <height>27</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QDoubleSpinBox" name="doubleSpinBox_max_filtered_read_wz_">
-    <property name="geometry">
-     <rect>
-      <x>370</x>
-      <y>530</y>
-      <width>65</width>
-      <height>27</height>
-     </rect>
+    <property name="text">
+     <string>Gait Type</string>
     </property>
    </widget>
   </widget>

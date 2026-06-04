@@ -64,9 +64,6 @@ MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
                                      ui->doubleSpinBox_max_read_vx_,
                                      ui->doubleSpinBox_max_read_vy_,
                                      ui->doubleSpinBox_max_read_wz_,
-                                    ui->doubleSpinBox_max_filtered_read_vx_,
-                                    ui->doubleSpinBox_max_filtered_read_vy_,
-                                    ui->doubleSpinBox_max_filtered_read_wz_,
                                      });
 
 
@@ -252,26 +249,13 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
             max_read_vy_ = v(1);
 
 
-        VectorXd wf   = unitree_b1_driver_->get_high_level_angular_velocity().vec3();
-        VectorXd vf   = unitree_b1_driver_->get_high_level_linear_velocity().vec3();
-
-
-        if (wf(2) > max_filtered_read_wz_)
-            max_filtered_read_wz_ = wf(2);
-
-        if (vf(0) > max_filtered_read_vx_)
-            max_filtered_read_vx_ = vf(0);
-
-        if (v(1) > max_filtered_read_vy_)
             max_filtered_read_vy_ = v(1);
 
         ui->doubleSpinBox_max_read_vx_->setValue(max_read_vx_);
         ui->doubleSpinBox_max_read_vy_->setValue(max_read_vy_);
         ui->doubleSpinBox_max_read_wz_->setValue(max_read_wz_);
 
-        ui->doubleSpinBox_max_filtered_read_vx_->setValue(max_filtered_read_vx_);
-        ui->doubleSpinBox_max_filtered_read_vy_->setValue(max_filtered_read_vy_);
-        ui->doubleSpinBox_max_filtered_read_wz_->setValue(max_filtered_read_wz_);
+
 
 
         ui->doubleSpinBox_read_vx_->setValue(v(0));
@@ -302,9 +286,12 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
                                    unitree_b1_driver_->get_current_high_mode());
         std::string target_mode  = unitree_b1_driver_->high_level_mode_to_string(
                                    unitree_b1_driver_->get_target_high_mode());
+        std::string gait_type  =   unitree_b1_driver_->gait_type_to_string(
+                                   unitree_b1_driver_->get_current_gait_type());
 
         ui->pushButton_target_mode_->setText(QString(target_mode.c_str()));
         ui->pushButton_current_mode_->setText(QString(current_mode.c_str()));
+        ui->pushButton_gait_type_->setText(QString(gait_type.c_str()));
 
         Vector3d rpy = unitree_b1_driver_->get_IMU_rpy_angles();
         ui->doubleSpinBox_read_roll_->setValue(rpy.x());
