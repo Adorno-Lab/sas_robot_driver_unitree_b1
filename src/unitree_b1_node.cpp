@@ -31,6 +31,7 @@
 #include <sas_common/sas_common.hpp>
 #include <sas_core/eigen3_std_conversions.hpp>
 
+
 //using std::placeholders::_1;
 
 namespace sas
@@ -101,7 +102,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
     publisher_RR_joint_states_ = node_->create_publisher<sensor_msgs::msg::JointState>(topic_prefix_ + "/get/RR_joint_states",1);
     publisher_RL_joint_states_ = node_->create_publisher<sensor_msgs::msg::JointState>(topic_prefix_ + "/get/RL_joint_states",1);
 
-
+    publisher_rpy_angles_ = node_->create_publisher<std_msgs::msg::Float64MultiArray>(topic_prefix_ + "/get/rpy_angles", 1);
     publisher_IMU_state_ = node_->create_publisher<sensor_msgs::msg::Imu>(topic_prefix_ + "/get/IMU_state", 1);
     publisher_pose_state_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(topic_prefix_ + "/get/pose_state", 1);
     publisher_high_level_velocities_state_ = node_->create_publisher<geometry_msgs::msg::TwistStamped>(topic_prefix_ + "/get/twist_state", 1);
@@ -273,6 +274,27 @@ void RobotDriverUnitreeB1::_read_twist_state_and_publish()
 
 }
 
+void RobotDriverUnitreeB1::_read_rpy_angles_state_and_publish()
+{
+    std_msgs::msg::Float64MultiArray msg;
+    Eigen::Vector3d rpy_angles = impl_->unitree_b1_driver_->get_IMU_rpy_angles();
+
+    msg.layout.dim.resize(1);
+    msg.layout.dim[0].label = "rpy";
+    msg.layout.dim[0].size = 3;
+    msg.layout.dim[0].stride = 3;
+
+
+    msg.data.clear();
+    msg.data.reserve(3);
+    msg.data.push_back(rpy_angles.x());
+    msg.data.push_back(rpy_angles.y());
+    msg.data.push_back(rpy_angles.z());
+
+    // Publish the message
+    publisher_rpy_angles_->publish(msg);
+}
+
 void RobotDriverUnitreeB1::_read_battery_state()
 {
     sensor_msgs::msg::BatteryState ros_msg_battery;
@@ -385,6 +407,7 @@ void RobotDriverUnitreeB1::control_loop()
             _read_twist_state_and_publish();
             _set_target_velocities_from_subscriber();
             _set_target_stand_commands_from_subscriber();
+            _read_rpy_angles_state_and_publish();
 
 
             if (is_watchdog_enabled())

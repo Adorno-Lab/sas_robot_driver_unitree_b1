@@ -79,7 +79,7 @@ private:
     //also equivalent to rclcpp::TimerBase::SharedPtr
     std::shared_ptr<rclcpp::TimerBase> timer_;
 
-    Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_target_joint_positions_;
+    //Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_target_joint_positions_;
 
     Publisher<sensor_msgs::msg::JointState>::SharedPtr publisher_FR_joint_states_;
     Publisher<sensor_msgs::msg::JointState>::SharedPtr publisher_FL_joint_states_;
@@ -90,6 +90,7 @@ private:
     Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_pose_state_;
     Publisher<sensor_msgs::msg::BatteryState>::SharedPtr publisher_battery_state_;
     Publisher<geometry_msgs::msg::TwistStamped>:: SharedPtr publisher_high_level_velocities_state_;
+    Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_rpy_angles_;
 
     //----------------Deprecated subscription to command the robot in walking mode--------------------------//
     Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscriber_target_holonomic_velocities_;
@@ -97,6 +98,8 @@ private:
     void _callback_target_holonomic_velocities(const std_msgs::msg::Float64MultiArray& msg);
     //bool new_target_velocities_available_{false};
     //-------------------------------------------------------------------------------------------------------//
+
+
 
     Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr subscriber_target_twist_;
     VectorXd target_twist_ = VectorXd::Zero(6);
@@ -154,6 +157,7 @@ protected:
     void _read_joint_states_and_publish();
     void _read_imu_state_and_publish();
     void _read_twist_state_and_publish();
+    void _read_rpy_angles_state_and_publish();
     void _read_battery_state();
     bool _should_shutdown() const;
     void _set_target_velocities_from_subscriber();
