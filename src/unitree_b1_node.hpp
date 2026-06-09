@@ -38,6 +38,7 @@
 #include <sas_core/sas_clock.hpp>
 #include <sas_msgs/msg/watchdog_trigger.hpp>
 #include <sas_msgs/msg/bool.hpp>
+#include <sas_conversions/sas_conversions.hpp>
 
 //using namespace Eigen;
 
@@ -87,6 +88,8 @@ private:
     Publisher<sensor_msgs::msg::JointState>::SharedPtr publisher_RL_joint_states_;
 
     Publisher<sensor_msgs::msg::Imu>::SharedPtr publisher_IMU_state_;
+    Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_IMU_orientation_;
+    Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_last_IMU_orientation_when_robot_stopped_;
     Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_pose_state_;
     Publisher<sensor_msgs::msg::BatteryState>::SharedPtr publisher_battery_state_;
     Publisher<geometry_msgs::msg::TwistStamped>:: SharedPtr publisher_high_level_velocities_state_;

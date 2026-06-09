@@ -109,7 +109,8 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
 
     publisher_battery_state_ = node_->create_publisher<sensor_msgs::msg::BatteryState>(topic_prefix_ + "/get/battery_state", 1);
 
-
+    publisher_IMU_orientation_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(topic_prefix_ + "/get/imu_orientation",1);
+    publisher_last_IMU_orientation_when_robot_stopped_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(topic_prefix_ + "/get/last_imu_orientation_when_robot_stopped",1);
 
     subscriber_target_holonomic_velocities_ = node_->create_subscription<std_msgs::msg::Float64MultiArray>(
         topic_prefix_ + "/set/holonomic_target_velocities",
@@ -225,7 +226,11 @@ void RobotDriverUnitreeB1::_read_imu_state_and_publish()
     geometry_msgs::msg::PoseStamped ros_msg_pose;
     ros_msg_pose.header.stamp = node_->get_clock()->now();
 
-    VectorXd vec_orientation = impl_->unitree_b1_driver_->get_IMU_orientation().vec4();
+
+    DQ rIMU_stopped = impl_->unitree_b1_driver_->get_last_IMU_orientation_when_robot_stopped();
+
+    DQ orientation = impl_->unitree_b1_driver_->get_IMU_orientation();
+    VectorXd vec_orientation = orientation.vec4();
     ros_msg_imu.orientation.w = vec_orientation(0);
     ros_msg_imu.orientation.x = vec_orientation(1);
     ros_msg_imu.orientation.y = vec_orientation(2);
@@ -253,6 +258,12 @@ void RobotDriverUnitreeB1::_read_imu_state_and_publish()
 
     publisher_IMU_state_->publish(ros_msg_imu);
     publisher_pose_state_->publish(ros_msg_pose);
+    publisher_IMU_orientation_->publish(sas::dq_to_geometry_msgs_pose_stamped(orientation));
+
+
+
+
+    publisher_last_IMU_orientation_when_robot_stopped_->publish(sas::dq_to_geometry_msgs_pose_stamped(rIMU_stopped));
 }
 
 void RobotDriverUnitreeB1::_read_twist_state_and_publish()

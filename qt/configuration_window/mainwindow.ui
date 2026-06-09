@@ -543,70 +543,31 @@
      <string>Current_mode</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_led1_">
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_computed_roll_">
     <property name="geometry">
      <rect>
-      <x>50</x>
-      <y>500</y>
-      <width>31</width>
-      <height>26</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="pushButton_led2_">
-    <property name="geometry">
-     <rect>
-      <x>190</x>
-      <y>500</y>
-      <width>31</width>
-      <height>26</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="pushButton_led3_">
-    <property name="geometry">
-     <rect>
-      <x>340</x>
-      <y>500</y>
-      <width>31</width>
-      <height>26</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-   </widget>
-   <widget class="QDoubleSpinBox" name="doubleSpinBox_max_read_vx_">
-    <property name="geometry">
-     <rect>
-      <x>90</x>
-      <y>500</y>
+      <x>800</x>
+      <y>310</y>
       <width>65</width>
       <height>27</height>
      </rect>
     </property>
    </widget>
-   <widget class="QDoubleSpinBox" name="doubleSpinBox_max_read_vy_">
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_computed_pitch_">
     <property name="geometry">
      <rect>
-      <x>220</x>
-      <y>500</y>
+      <x>800</x>
+      <y>390</y>
       <width>65</width>
       <height>27</height>
      </rect>
     </property>
    </widget>
-   <widget class="QDoubleSpinBox" name="doubleSpinBox_max_read_wz_">
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_computed_yaw_">
     <property name="geometry">
      <rect>
-      <x>370</x>
-      <y>500</y>
+      <x>800</x>
+      <y>460</y>
       <width>65</width>
       <height>27</height>
      </rect>
@@ -623,6 +584,36 @@
     </property>
     <property name="text">
      <string>Gait Type</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_computed_rel_roll_">
+    <property name="geometry">
+     <rect>
+      <x>800</x>
+      <y>280</y>
+      <width>65</width>
+      <height>27</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_computed_rel_pitch_">
+    <property name="geometry">
+     <rect>
+      <x>800</x>
+      <y>360</y>
+      <width>65</width>
+      <height>27</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="doubleSpinBox_computed_rel_yaw_">
+    <property name="geometry">
+     <rect>
+      <x>800</x>
+      <y>430</y>
+      <width>65</width>
+      <height>27</height>
+     </rect>
     </property>
    </widget>
   </widget>

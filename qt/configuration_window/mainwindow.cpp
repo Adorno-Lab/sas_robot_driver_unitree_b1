@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
+#include <iomanip>
 
 MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
     : QMainWindow(parent)
@@ -61,9 +62,12 @@ MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
                                      ui->doubleSpinBox_read_pitch_,
                                      ui->doubleSpinBox_read_yaw_,
                                      ui->doubleSpinBox_read_height_,
-                                     ui->doubleSpinBox_max_read_vx_,
-                                     ui->doubleSpinBox_max_read_vy_,
-                                     ui->doubleSpinBox_max_read_wz_,
+                                     ui->doubleSpinBox_computed_roll_,
+                                     ui->doubleSpinBox_computed_pitch_,
+                                     ui->doubleSpinBox_computed_yaw_,
+                                     ui->doubleSpinBox_computed_rel_roll_,
+                                     ui->doubleSpinBox_computed_rel_pitch_,
+                                     ui->doubleSpinBox_computed_rel_yaw_
                                      });
 
 
@@ -251,33 +255,74 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
 
             max_filtered_read_vy_ = v(1);
 
-        ui->doubleSpinBox_max_read_vx_->setValue(max_read_vx_);
-        ui->doubleSpinBox_max_read_vy_->setValue(max_read_vy_);
-        ui->doubleSpinBox_max_read_wz_->setValue(max_read_wz_);
 
 
+        // compute Euler angles
+        auto r_0b = unitree_b1_driver_->get_IMU_orientation();
+       // Eigen::Quaterniond q1(r(0), r(1), r(2), r(3));
+       // Eigen::Matrix3d R1 = q1.toRotationMatrix();
+
+
+        // Method B: Manual extraction
+        //double roll_manual  = std::atan2(R1(2, 1), R1(2, 2));
+        //double pitch_manual = std::atan2(-R1(2, 0),
+         //                                std::sqrt(R1(2, 1)*R1(2, 1) + R1(2, 2)*R1(2, 2)));
+       // double yaw_manual   = std::atan2(R1(1, 0), R1(0, 0));
+
+        Eigen::Vector3d  rpy_from_orientation = _compute_euler_angles_from_unit_quaternion(r_0b);
+
+        // Your existing RPY angles from driver
+        Eigen::Vector3d rpy_from_driver = unitree_b1_driver_->get_IMU_rpy_angles();
+
+        DQ r_0f = unitree_b1_driver_->get_last_IMU_orientation_when_robot_stopped();
+        //std::cout <<" r_0f: "<<r_0f<<std::endl;
+        DQ r_fb = r_0f.conj()*r_0b;
+
+        Eigen::Vector3d rpy_rel = _compute_euler_angles_from_unit_quaternion(r_fb);
+
+
+        ui->doubleSpinBox_computed_rel_roll_->setValue(rpy_rel.x());
+        ui->doubleSpinBox_computed_rel_pitch_->setValue(rpy_rel.y());
+        ui->doubleSpinBox_computed_rel_yaw_->setValue(rpy_rel.z());
+
+
+        ui->doubleSpinBox_computed_roll_->setValue(rpy_from_orientation.x());
+        ui->doubleSpinBox_computed_pitch_->setValue(rpy_from_orientation.y());
+        ui->doubleSpinBox_computed_yaw_->setValue(rpy_from_orientation.z());
+
+        // Print comparison
+        std::cout << "========== RPY ANGLE COMPARISON ==========" << std::endl;
+        std::cout << std::fixed << std::setprecision(6);
+        std::cout << std::setw(15) << "Method"
+                  << std::setw(15) << "Roll (X)"
+                  << std::setw(15) << "Pitch (Y)"
+                  << std::setw(15) << "Yaw (Z)" << std::endl;
+        std::cout << "----------------------------------------------" << std::endl;
+
+
+        std::cout << std::setw(15) << "Manual Extraction"
+                  << std::setw(15) << rpy_from_orientation.x()
+                  << std::setw(15) << rpy_from_orientation.y()
+                  << std::setw(15) << rpy_from_orientation.z()  << " rad" << std::endl;
+
+        std::cout << std::setw(15) << "Driver Direct"
+                  << std::setw(15) << rpy_from_driver.x()
+                  << std::setw(15) << rpy_from_driver.y()
+                  << std::setw(15) << rpy_from_driver.z() << " rad" << std::endl;
+
+        std::cout << std::setw(15) << "Relative"
+                  << std::setw(15) << rpy_rel.x()
+                  << std::setw(15) << rpy_rel.y()
+                  << std::setw(15) << rpy_rel.z()  << " rad" << std::endl;
+
+        std::cout << "==============================================" << std::endl;
 
 
         ui->doubleSpinBox_read_vx_->setValue(v(0));
         ui->doubleSpinBox_read_vy_->setValue(v(1));
         ui->doubleSpinBox_read_wz_->setValue(w(2));
 
-        double speed_threshold_to_force_stand_mode_ = 0.2;
 
-        if (std::abs(w(2)) >= speed_threshold_to_force_stand_mode_)
-        {
-            ui->pushButton_led1_->setStyleSheet("background-color: #d41717;");
-        }
-
-        if (std::abs(v(0))>= speed_threshold_to_force_stand_mode_)
-        {
-            ui->pushButton_led2_->setStyleSheet("background-color: #d41717;");
-        }
-
-        if (std::abs(v(1))>= speed_threshold_to_force_stand_mode_)
-        {
-            ui->pushButton_led3_->setStyleSheet("background-color: #d41717;");
-        }
 
 
         ui->progressBar_battery->setValue(unitree_b1_driver_->get_state_of_charge());
@@ -406,6 +451,27 @@ void MainWindow::_config_spin_boxes_as_read_only(const std::vector<QDoubleSpinBo
         spinboxes.at(i)->setDecimals(2);  // Set precision to 3 decimals
         spinboxes.at(i)->setRange(-500,500);
     }
+}
+
+Vector3d MainWindow::_compute_euler_angles_from_unit_quaternion(const DQ &r) const
+{
+    VectorXd rv = r.vec4();
+    Eigen::Quaterniond q(rv(0), rv(1), rv(2), rv(3));
+    Eigen::Matrix3d R1 = q.toRotationMatrix();
+
+
+    // Method B: Manual extraction
+    double roll_manual  = std::atan2(R1(2, 1), R1(2, 2));
+    double pitch_manual = std::atan2(-R1(2, 0),
+                                     std::sqrt(R1(2, 1)*R1(2, 1) + R1(2, 2)*R1(2, 2)));
+    double yaw_manual   = std::atan2(R1(1, 0), R1(0, 0));
+
+
+    // Return as Vector3d (roll, pitch, yaw) - radians
+    Vector3d euler_angles;
+    euler_angles << roll_manual, pitch_manual, yaw_manual;
+
+    return euler_angles;
 }
 
 

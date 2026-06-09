@@ -652,6 +652,11 @@ DQ DriverUnitreeB1::get_IMU_orientation() const
     return IMU_orientation_;
 }
 
+DQ DriverUnitreeB1::get_last_IMU_orientation_when_robot_stopped() const
+{
+    return last_IMU_orientation_when_robot_stopped_;
+}
+
 Vector3d DriverUnitreeB1::get_IMU_rpy_angles() const
 {
     return IMU_rpy_;
@@ -1056,15 +1061,13 @@ void DriverUnitreeB1::_stop_robot_in_high_level_motion()
             _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
         }else
         {
-            // During STOPPING_DURATION_MS, send zero walking commands
-           // if (current_high_level_mode_ == HIGH_LEVEL_MODE::FORCED_STAND)
-           //     _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND, 0.0, 0.0, 0.0);
-           // else
-                _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0, 0.0, 0.0);
+            _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0, 0.0, 0.0);
         }
     }
     else
         _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0,0.0,0.0);
+
+    last_IMU_orientation_when_robot_stopped_ = IMU_orientation_;
 }
 
 
@@ -1181,6 +1184,12 @@ void DriverUnitreeB1::_command_robot_in_high_level_motion()
                                     target_high_level_pitch_angle_,
                                     target_high_level_yaw_angle_,
                                     target_high_level_bodyheight_);
+
+        bool all_target_angles_are_zero = are_approximately_equal(target_high_level_roll_angle_, 0.0) &&
+                                          are_approximately_equal(target_high_level_pitch_angle_, 0.0) &&
+                                          are_approximately_equal(target_high_level_yaw_angle_, 0.0);
+        if (all_target_angles_are_zero)
+            last_IMU_orientation_when_robot_stopped_ = IMU_orientation_;
     }
     else
     {

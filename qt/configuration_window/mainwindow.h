@@ -110,6 +110,9 @@ private:
     void _config_spin_boxes_as_read_only(const std::vector<QDoubleSpinBox *> &spinboxes);
 
 
+    Eigen::Vector3d _compute_euler_angles_from_unit_quaternion(const DQ& r) const;
+
+
 
 
 };
