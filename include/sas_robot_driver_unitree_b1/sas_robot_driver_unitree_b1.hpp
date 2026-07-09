@@ -39,7 +39,7 @@
 #include <sas_msgs/msg/watchdog_trigger.hpp>
 #include <sas_msgs/msg/bool.hpp>
 #include <sas_core/sas_robot_driver.hpp>
-
+#include "FreeFlyingRobotDriver.hpp"
 //using namespace Eigen;
 
 using namespace rclcpp;
@@ -61,7 +61,7 @@ struct RobotDriverUnitreeB1Configuration
 
 
 
-class RobotDriverUnitreeB1: public RobotDriver
+class RobotDriverUnitreeB1: public FreeFlyingRobotDriver
 {
 protected:
     std::atomic_bool* st_break_loops_;
@@ -165,16 +165,19 @@ public:
     VectorXd get_joint_positions() override;
     void set_target_joint_positions(const VectorXd& desired_joint_positions_rad) override;
 
-    void set_target_joint_velocities(const VectorXd& desired_joint_velocities_rad_s) override;
+    //void set_target_joint_velocities(const VectorXd& desired_joint_velocities_rad_s) override;
 
-    VectorXd get_joint_velocities() override;
-    VectorXd get_joint_torques() override;
+    //VectorXd get_joint_velocities() override;
+    //VectorXd get_joint_torques() override;
 
     void connect() override;
     void disconnect() override;
 
     void initialize() override;
     void deinitialize() override;
+
+    void set_twist(const DQ& twist) override;
+    DQ get_twist() override;
 
 };
 

@@ -23,7 +23,7 @@
 #
 # ################################################################*/
 
-#include "unitree_b1_node.hpp"
+#include <sas_robot_driver_unitree_b1/sas_robot_driver_unitree_b1.hpp>
 
 #include "DriverUnitreeB1.hpp"
 #include <iostream>
@@ -53,7 +53,7 @@ public:
 RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
                                            const RobotDriverUnitreeB1Configuration &configuration,
                                            std::atomic_bool *break_loops)
-    :RobotDriver{break_loops},
+    :FreeFlyingRobotDriver{break_loops},
     st_break_loops_{break_loops},
     topic_prefix_{configuration.robot_name},
     configuration_{configuration},
@@ -128,6 +128,46 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
         std::bind(&RobotDriverUnitreeB1::_callback_shutdown_signal_,  this, std::placeholders::_1)
         );
 
+
+}
+
+VectorXd RobotDriverUnitreeB1::get_joint_positions()
+{
+    return VectorXd::Zero(3);
+}
+
+void RobotDriverUnitreeB1::set_target_joint_positions(const VectorXd &desired_joint_positions_rad)
+{
+
+}
+
+void RobotDriverUnitreeB1::connect()
+{
+
+}
+
+void RobotDriverUnitreeB1::disconnect()
+{
+
+}
+
+void RobotDriverUnitreeB1::initialize()
+{
+
+}
+
+void RobotDriverUnitreeB1::deinitialize()
+{
+
+}
+
+void RobotDriverUnitreeB1::set_twist(const DQ &twist)
+{
+
+}
+
+DQ RobotDriverUnitreeB1::get_twist()
+{
 
 }
 
