@@ -47,6 +47,7 @@ set(CMAKE_CXX_FLAGS "-O3 -fPIC")
 add_library(${PROJECT_NAME} SHARED
     src/unitree_b1_node.cpp
     src/DriverUnitreeB1.cpp
+    src/FreeFlyingRobotDriver.cpp
     )
 
 target_link_libraries(${PROJECT_NAME}
