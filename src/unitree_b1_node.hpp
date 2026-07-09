@@ -38,6 +38,7 @@
 #include <sas_core/sas_clock.hpp>
 #include <sas_msgs/msg/watchdog_trigger.hpp>
 #include <sas_msgs/msg/bool.hpp>
+#include <sas_core/sas_robot_driver.hpp>
 
 //using namespace Eigen;
 
@@ -60,7 +61,7 @@ struct RobotDriverUnitreeB1Configuration
 
 
 
-class RobotDriverUnitreeB1
+class RobotDriverUnitreeB1: public RobotDriver
 {
 protected:
     std::atomic_bool* st_break_loops_;
@@ -153,7 +154,24 @@ public:
                          const RobotDriverUnitreeB1Configuration &configuration,
                          std::atomic_bool* break_loops);
 
-    void control_loop();
+    //void control_loop();
+
+
+    //----------RobotDriver----methods---------------------------------//
+
+    VectorXd get_joint_positions() override;
+    void set_target_joint_positions(const VectorXd& desired_joint_positions_rad) override;
+
+    void set_target_joint_velocities(const VectorXd& desired_joint_velocities_rad_s) override;
+
+    VectorXd get_joint_velocities() override;
+    VectorXd get_joint_torques() override;
+
+    void connect() override;
+    void disconnect() override;
+
+    void initialize() override;
+    void deinitialize() override;
 
 };
 

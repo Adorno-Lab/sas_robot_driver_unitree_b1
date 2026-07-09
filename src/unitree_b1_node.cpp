@@ -312,7 +312,7 @@ bool RobotDriverUnitreeB1::is_watchdog_enabled() const
     return watchdog_enabled_;
 }
 
-
+/*
 
 void RobotDriverUnitreeB1::control_loop()
 {
@@ -390,6 +390,7 @@ void RobotDriverUnitreeB1::control_loop()
         RCLCPP_ERROR_STREAM(node_->get_logger(),"::Unexpected error or exception caught");
     }
 }
+*/
 
 void RobotDriverUnitreeB1::_callback_target_holonomic_velocities(const std_msgs::msg::Float64MultiArray &msg)
 {
@@ -504,13 +505,6 @@ void RobotDriverUnitreeB1::_watchdog_thread_function()
 
 RobotDriverUnitreeB1::~RobotDriverUnitreeB1()
 {
-    if (watchdog_thread_ && watchdog_thread_->joinable()) {
-        *st_break_loops_ = true; // Signal shutdown;  //To force the thread to shutdown if it hasn't already done so
-        watchdog_thread_->join();
-    }
+    *st_break_loops_ = true;
     impl_->unitree_b1_driver_->deinitialize();
-    impl_->unitree_b1_driver_->disconnect();
-}
-
-
 }
