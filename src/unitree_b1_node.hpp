@@ -104,9 +104,11 @@ private:
 
 
     Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_emergency_stop_device_signal_;
-    void _callback_emergency_stop_device_signa_(const sas_msgs::msg::Bool& msg);
+    void _callback_emergency_stop_device_signal_(const sas_msgs::msg::Bool& msg);
 
     //------Watchdog-----------------------------------------------------------------
+
+    /*
     Subscription<sas_msgs::msg::WatchdogTrigger>::SharedPtr subscriber_watchdog_trigger_;
     void _callback_watchdog_trigger_state(const sas_msgs::msg::WatchdogTrigger& msg);
     bool watchdog_trigger_status_;
@@ -123,10 +125,11 @@ private:
     double watchdog_period_;
     double watchdog_period_in_seconds_;
     double watchdog_maximum_acceptable_delay_in_seconds_;
+*/
 
 
 
-    std::mutex mutex_watchdog_;
+   // std::mutex mutex_watchdog_;
 
 
     //Implementation details that depend on FRI source files.

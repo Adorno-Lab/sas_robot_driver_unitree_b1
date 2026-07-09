@@ -53,15 +53,14 @@ public:
 RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
                                            const RobotDriverUnitreeB1Configuration &configuration,
                                            std::atomic_bool *break_loops)
-    :
+    :RobotDriver{break_loops},
     st_break_loops_{break_loops},
     topic_prefix_{configuration.robot_name},
     configuration_{configuration},
     node_{node}, timer_period_{0.002},
     print_count_{0},
     clock_{0.002},
-    shutdown_signal_{false},
-    watchdog_started_{false}
+    shutdown_signal_{false}
 {
     impl_ = std::make_unique<RobotDriverUnitreeB1::Impl>();
 
@@ -117,10 +116,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
         );
 
 
-    subscriber_watchdog_trigger_ = node_->create_subscription<sas_msgs::msg::WatchdogTrigger>(
-        topic_prefix_ + "/set/watchdog_trigger", 1,
-        std::bind(&RobotDriverUnitreeB1::_callback_watchdog_trigger_state, this, std::placeholders::_1)
-        );
+
 
     subscriber_shutdown_signal_ = node->create_subscription<sas_msgs::msg::Bool>(
         topic_prefix_ + "/set/shutdown", 1,
@@ -284,33 +280,6 @@ void RobotDriverUnitreeB1::_set_target_velocities_from_subscriber()
     }
 }
 
-void RobotDriverUnitreeB1::_watchdog_set_maximum_acceptable_delay(const double &max_acceptable_delay)
-{
-    watchdog_maximum_acceptable_delay_in_seconds_ = max_acceptable_delay;
-}
-
-void RobotDriverUnitreeB1::_callback_watchdog_trigger_state(const sas_msgs::msg::WatchdogTrigger& msg)
-{
-    std::scoped_lock lock(mutex_watchdog_);
-
-    watchdog_enabled_ = true;
-    watchdog_trigger_status_ = msg.status;
-    watchdog_period_in_seconds_ = msg.period_in_seconds;
-    watchdog_maximum_acceptable_delay_in_seconds_ = msg.maximum_acceptable_delay_in_seconds;
-
-    //This time point corresponds to the moment the signal was sent, as recorded by the client computer's clock.
-    time_point_from_the_client_ = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>(
-        std::chrono::seconds(msg.header.stamp.sec) + std::chrono::nanoseconds(msg.header.stamp.nanosec)
-        );
-
-    //This time point corresponds to the moment the sigal was received, as recorded by the server computer's clock.
-    time_point_from_the_server_ = std::chrono::system_clock::now();
-}
-
-bool RobotDriverUnitreeB1::is_watchdog_enabled() const
-{
-    return watchdog_enabled_;
-}
 
 /*
 
@@ -406,7 +375,7 @@ void RobotDriverUnitreeB1::_callback_shutdown_signal_(const sas_msgs::msg::Bool 
         shutdown_signal_ = msg.data;
 }
 
-void RobotDriverUnitreeB1:: _callback_emergency_stop_device_signa_(const sas_msgs::msg::Bool& msg)
+void RobotDriverUnitreeB1:: _callback_emergency_stop_device_signal_(const sas_msgs::msg::Bool& msg)
 {
     // Only update this member if it was never set to true.
     // In other words, the driver is shut down if at least one received message is true.
@@ -414,97 +383,14 @@ void RobotDriverUnitreeB1:: _callback_emergency_stop_device_signa_(const sas_msg
         shutdown_signal_ = msg.data;
 }
 
-/**
- * @brief RobotDriverUnitreeB1::watchdog_start starts the watchdog thread
- * @param period The period of time.
- */
-void RobotDriverUnitreeB1::_watchdog_start(const std::chrono::nanoseconds& period)
-{
-    if (!watchdog_clock_)
-    {
-
-        watchdog_period_ =  std::chrono::duration_cast<std::chrono::duration<double>>(period).count();
-        // If the watchdog period is 1 second, the watchdog thread control is going to check five times per second.
-        watchdog_clock_ = std::make_unique<sas::Clock>(watchdog_period_/5.0);
-    }
-
-    if (!watchdog_thread_)
-        watchdog_thread_ = std::make_unique<std::thread>(&RobotDriverUnitreeB1::_watchdog_thread_function, this);
-}
-
-/**
- * @brief RobotDriverUnitreeB1::_watchdog_thread_function throws an exception if the elapsed time since the last watchdog time point from the server
- *        exceeds the specified period.
- */
-void RobotDriverUnitreeB1::_watchdog_thread_function()
-{
-
-    const double thread_freq =1.0/watchdog_clock_->get_desired_thread_sampling_time_sec();
-    watchdog_clock_->init();
-
-    while(!_should_shutdown())
-    {
-        try {
-            std::chrono::system_clock::time_point current_time = std::chrono::system_clock::now();
-            double elapsed_time;
-            double elapsed_time_same_clock;
-            bool wstatus;
-            {
-                std::scoped_lock lock(mutex_watchdog_);
-                elapsed_time = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - time_point_from_the_client_).count();
-                elapsed_time_same_clock = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - time_point_from_the_server_).count();
-                wstatus = watchdog_trigger_status_;
-            }
-
-            double clock_difference = std::abs(elapsed_time - elapsed_time_same_clock);
-            if (clock_difference > watchdog_maximum_acceptable_delay_in_seconds_)
-            {
-                throw std::runtime_error(
-                    std::string("RobotDriverUnitreeB1:: The watchdog signal is delayed, or the clocks between the client and server are out of synch! ") +
-                    "Watchdog signal delay: " + std::to_string(1000*clock_difference) +"ms."
-                    );
-                *st_break_loops_ = true; // Signal shutdown
-            }
 
 
-            if (elapsed_time_same_clock  >  watchdog_period_ )
-            {
-                throw std::runtime_error(
-                    std::string("RobotDriverUnitreeB1:: The watchdog signal was lost! ") +
-                    "The elapsed time was " + std::to_string(elapsed_time_same_clock) +
-                    " seconds, but the period is " + std::to_string( watchdog_period_ ) + ". There was a watchdog signal delay of " + std::to_string(1000*clock_difference) +
-                    "ms." +
-                    "The watchdog thread runs at " + std::to_string(thread_freq)+ "Hz."
-                    );
-                *st_break_loops_ = true; // Signal shutdown
-            }
-
-
-            if(!wstatus)
-            {
-                throw std::runtime_error("RobotDriverUnitreeB1:: The watchdog status is false!");
-                *st_break_loops_ = true; // Signal shutdown
-            }
-            watchdog_clock_->update_and_sleep();
-        }
-        catch(const std::exception& e) {
-            RCLCPP_ERROR_STREAM(node_->get_logger(), e.what());
-            *st_break_loops_ = true; // Signal shutdown
-            break;
-        }
-        catch(...) {
-            RCLCPP_ERROR_STREAM(node_->get_logger(), "Unknown watchdog exception");
-            *st_break_loops_ = true; // Signal shutdown
-            break;
-        }
-    }
-
-
-}
 
 
 RobotDriverUnitreeB1::~RobotDriverUnitreeB1()
 {
     *st_break_loops_ = true;
     impl_->unitree_b1_driver_->deinitialize();
+}
+
 }
