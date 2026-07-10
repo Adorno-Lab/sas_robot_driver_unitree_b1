@@ -106,30 +106,6 @@ private:
     Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_emergency_stop_device_signal_;
     void _callback_emergency_stop_device_signal_(const sas_msgs::msg::Bool& msg);
 
-    //------Watchdog-----------------------------------------------------------------
-
-    /*
-    Subscription<sas_msgs::msg::WatchdogTrigger>::SharedPtr subscriber_watchdog_trigger_;
-    void _callback_watchdog_trigger_state(const sas_msgs::msg::WatchdogTrigger& msg);
-    bool watchdog_trigger_status_;
-    bool watchdog_enabled_;
-    bool is_watchdog_enabled() const;
-    bool watchdog_started_;
-    std::unique_ptr<sas::Clock> watchdog_clock_;
-    std::unique_ptr<std::thread> watchdog_thread_;
-    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> time_point_from_the_client_;
-    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> time_point_from_the_server_;
-    void _watchdog_thread_function();
-    void _watchdog_start(const std::chrono::nanoseconds& period);
-    //double max_acceptable_delay_ = 0.1;
-    double watchdog_period_;
-    double watchdog_period_in_seconds_;
-    double watchdog_maximum_acceptable_delay_in_seconds_;
-*/
-
-
-
-   // std::mutex mutex_watchdog_;
 
 
     //Implementation details that depend on FRI source files.
@@ -167,8 +143,8 @@ public:
 
     //void set_target_joint_velocities(const VectorXd& desired_joint_velocities_rad_s) override;
 
-    //VectorXd get_joint_velocities() override;
-    //VectorXd get_joint_torques() override;
+    VectorXd get_joint_velocities() override;
+    VectorXd get_joint_torques() override;
 
     void connect() override;
     void disconnect() override;
