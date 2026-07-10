@@ -10,7 +10,7 @@ namespace sas
 {
 
 
-class FreeFlyingRobotDriver: public RobotDriver
+class LeggedRobotDriver: public RobotDriver
 {
 
 public:
@@ -28,13 +28,13 @@ protected:
     //  Mode target_mode_{Mode::Idle};
 
 public:
-    FreeFlyingRobotDriver(const FreeFlyingRobotDriver&)=delete;
-    FreeFlyingRobotDriver()=delete;
+    LeggedRobotDriver(const LeggedRobotDriver&)=delete;
+    LeggedRobotDriver()=delete;
 
-    ~FreeFlyingRobotDriver();
+    ~LeggedRobotDriver();
 
-    FreeFlyingRobotDriver(std::atomic_bool* break_loops);
-    FreeFlyingRobotDriver(const std::shared_ptr<ShutdownSignaler>& shutdown_signaler);
+    LeggedRobotDriver(std::atomic_bool* break_loops);
+    LeggedRobotDriver(const std::shared_ptr<ShutdownSignaler>& shutdown_signaler);
 
     // Required implementations from RobotDriver - PURE VIRTUAL
     virtual VectorXd get_joint_positions() override = 0;

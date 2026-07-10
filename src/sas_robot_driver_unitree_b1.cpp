@@ -53,7 +53,7 @@ public:
 RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
                                            const RobotDriverUnitreeB1Configuration &configuration,
                                            std::atomic_bool *break_loops)
-    :FreeFlyingRobotDriver{break_loops},
+    :LeggedRobotDriver{break_loops},
     st_break_loops_{break_loops},
     topic_prefix_{configuration.robot_name},
     configuration_{configuration},
@@ -95,7 +95,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
 
 
 
-
+    // For backward compatibility
     publisher_FR_joint_states_ = node_->create_publisher<sensor_msgs::msg::JointState>(topic_prefix_ + "/get/FR_joint_states",1);
     publisher_FL_joint_states_ = node_->create_publisher<sensor_msgs::msg::JointState>(topic_prefix_ + "/get/FL_joint_states",1);
     publisher_RR_joint_states_ = node_->create_publisher<sensor_msgs::msg::JointState>(topic_prefix_ + "/get/RR_joint_states",1);

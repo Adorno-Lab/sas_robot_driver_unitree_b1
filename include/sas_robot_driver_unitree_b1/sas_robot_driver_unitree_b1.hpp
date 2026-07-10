@@ -39,7 +39,7 @@
 #include <sas_msgs/msg/watchdog_trigger.hpp>
 #include <sas_msgs/msg/bool.hpp>
 #include <sas_core/sas_robot_driver.hpp>
-#include "FreeFlyingRobotDriver.hpp"
+#include "LeggedRobotDriver.hpp"
 //using namespace Eigen;
 
 using namespace rclcpp;
@@ -61,7 +61,7 @@ struct RobotDriverUnitreeB1Configuration
 
 
 
-class RobotDriverUnitreeB1: public FreeFlyingRobotDriver
+class RobotDriverUnitreeB1: public LeggedRobotDriver
 {
 protected:
     std::atomic_bool* st_break_loops_;
