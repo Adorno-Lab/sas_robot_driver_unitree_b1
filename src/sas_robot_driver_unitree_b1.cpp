@@ -30,6 +30,7 @@
 #include <memory>
 #include <sas_common/sas_common.hpp>
 #include <sas_core/eigen3_std_conversions.hpp>
+#include <sas_conversions/DQ_geometry_msgs_conversions.hpp>
 
 
 //using std::placeholders::_1;
@@ -402,9 +403,9 @@ void RobotDriverUnitreeB1::_read_imu_state_and_publish()
     publisher_pose_state_->publish(ros_msg_pose);
 
 
-   // publisher_IMU_orientation_->publish(sas::dq_to_geometry_msgs_pose_stamped(orientation));
+    publisher_IMU_orientation_->publish(sas::dq_to_geometry_msgs_pose_stamped(orientation));
 
-    //publisher_last_IMU_orientation_when_robot_stopped_->publish(sas::dq_to_geometry_msgs_pose_stamped(rIMU_stopped));
+    publisher_last_IMU_orientation_when_robot_stopped_->publish(sas::dq_to_geometry_msgs_pose_stamped(rIMU_stopped));
 }
 
 void RobotDriverUnitreeB1::_read_twist_state_and_publish()
