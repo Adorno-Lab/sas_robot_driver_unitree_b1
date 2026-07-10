@@ -1173,13 +1173,20 @@ void DriverUnitreeB1::_command_robot_in_high_level_motion()
 
             _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, target_high_level_forward_speed_,
                                         target_high_level_side_speed_,
-                                        target_high_level_yaw_speed_);
+                                        target_high_level_yaw_speed_,
+                                        target_high_level_roll_angle_,
+                                        target_high_level_pitch_angle_,
+                                        target_high_level_yaw_angle_,
+                                        target_high_level_bodyheight_);
         }
     }else if (target_high_level_mode_ == HIGH_LEVEL_MODE::FORCED_STAND)
     {
         // Reset timer when entering forced stand mode directly
         frozen_time_high_level_stop_motion_was_set_ = false;
-        _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND,0,0,0,
+        _command_in_high_level_mode(HIGH_LEVEL_MODE::FORCED_STAND,
+                                    target_high_level_forward_speed_,
+                                    target_high_level_side_speed_,
+                                    target_high_level_yaw_speed_,
                                     target_high_level_roll_angle_,
                                     target_high_level_pitch_angle_,
                                     target_high_level_yaw_angle_,
