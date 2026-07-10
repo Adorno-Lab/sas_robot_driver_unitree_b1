@@ -23,7 +23,7 @@
 #
 # ################################################################*/
 
-#include "unitree_b1_node.hpp"
+#include <sas_robot_driver_unitree_b1/sas_robot_driver_unitree_b1.hpp>
 
 #include "DriverUnitreeB1.hpp"
 #include <iostream>
@@ -51,23 +51,13 @@ public:
 
 };
 
-RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
-                                           const RobotDriverUnitreeB1Configuration &configuration,
-                                           std::atomic_bool *break_loops)
-    :
-    st_break_loops_{break_loops},
-    topic_prefix_{configuration.robot_name},
-    configuration_{configuration},
-    node_{node}, timer_period_{0.002},
-    print_count_{0},
-    clock_{0.002},
-    shutdown_signal_{false},
-    watchdog_started_{false}
+
+void RobotDriverUnitreeB1::_initial_settings()
 {
     impl_ = std::make_unique<RobotDriverUnitreeB1::Impl>();
 
     DriverUnitreeB1::MODE mode;
-    if (configuration.mode == "VelocityControl")
+    if (configuration_.mode == "VelocityControl")
     {
         mode = DriverUnitreeB1::MODE::VelocityControl;
     }else{
@@ -80,7 +70,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
 
 
     // I need to use the parameters of the configuration structure!
-    impl_->unitree_b1_driver_ = std::make_shared<DriverUnitreeB1>(break_loops,
+    impl_->unitree_b1_driver_ = std::make_shared<DriverUnitreeB1>(break_loops_,
                                                                   mode, // Driver mode
                                                                   DriverUnitreeB1::LEVEL::HIGH,       // Level mode
                                                                   true,   //verbosity
@@ -91,12 +81,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
                                                                   8090,
                                                                   custom_flags);
 
-
-
-
-
-
-
+    // For backward compatibility
     publisher_FR_joint_states_ = node_->create_publisher<sensor_msgs::msg::JointState>(topic_prefix_ + "/get/FR_joint_states",1);
     publisher_FL_joint_states_ = node_->create_publisher<sensor_msgs::msg::JointState>(topic_prefix_ + "/get/FL_joint_states",1);
     publisher_RR_joint_states_ = node_->create_publisher<sensor_msgs::msg::JointState>(topic_prefix_ + "/get/RR_joint_states",1);
@@ -136,23 +121,171 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
         std::bind(&RobotDriverUnitreeB1::_callback_mode_switch, this, std::placeholders::_1)
         );
 
-    subscriber_watchdog_trigger_ = node_->create_subscription<sas_msgs::msg::WatchdogTrigger>(
-        topic_prefix_ + "/set/watchdog_trigger", 1,
-        std::bind(&RobotDriverUnitreeB1::_callback_watchdog_trigger_state, this, std::placeholders::_1)
-        );
 
-    subscriber_shutdown_signal_ = node->create_subscription<sas_msgs::msg::Bool>(
+/*
+    subscriber_shutdown_signal_ = node_->create_subscription<sas_msgs::msg::Bool>(
         topic_prefix_ + "/set/shutdown", 1,
         std::bind(&RobotDriverUnitreeB1::_callback_shutdown_signal_,  this, std::placeholders::_1)
         );
+*/
 
-    subscriber_emergency_stop_device_signal_ = node->create_subscription<sas_msgs::msg::Bool>(
+    subscriber_emergency_stop_device_signal_ = node_->create_subscription<sas_msgs::msg::Bool>(
         "/sas/set/shutdown", 1,
-        std::bind(&RobotDriverUnitreeB1::_callback_shutdown_signal_,  this, std::placeholders::_1)
+        std::bind(&RobotDriverUnitreeB1::_callback_emergency_stop_device_signal,  this, std::placeholders::_1)
         );
 
+    // set the callback here
+    set_control_loop_callback([this]() {
+        _read_joint_states_and_publish();
+        _read_imu_state_and_publish();
+        _read_battery_state();
+        _read_twist_state_and_publish();
+        _set_target_velocities_from_subscriber();
 
+        if (shutdown_signal_)
+        {
+            throw std::runtime_error("The shutdown signal was received!");
+            *st_break_loops_ = true; // Signal shutdown
+        }
+    });
 }
+
+RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
+                                           const RobotDriverUnitreeB1Configuration &configuration,
+                                           std::atomic_bool *break_loops)
+    :LeggedRobotDriver{break_loops},
+    st_break_loops_{break_loops},
+    topic_prefix_{configuration.robot_name},
+    configuration_{configuration},
+    node_{node},
+    timer_period_{0.002},
+    print_count_{0},
+    clock_{0.002},
+    shutdown_signal_{false}
+{
+    _initial_settings();
+}
+
+RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
+                                           const RobotDriverUnitreeB1Configuration &configuration,
+                                           const std::shared_ptr<ShutdownSignaler> &shutdown_signaler)
+    :LeggedRobotDriver{shutdown_signaler},
+    topic_prefix_{configuration.robot_name},
+    configuration_{configuration},
+    node_{node},
+    timer_period_{0.002},
+    print_count_{0},
+    clock_{0.002},
+    shutdown_signal_{false}
+{
+    _initial_settings();
+}
+
+
+/**
+ * @brief Get the joint positions of all four legs of the Unitree B1 robot
+ *
+ * Retrieves the current joint angles for all 12 degrees of freedom (3 per leg)
+ * and concatenates them into a single state vector.
+ *
+ * @return VectorXd A 12-element vector with joint positions in the format:
+ *         [FR_hip, FR_thigh, FR_calf, FL_hip, FL_thigh, FL_calf,
+ *          RR_hip, RR_thigh, RR_calf, RL_hip, RL_thigh, RL_calf]
+ */
+VectorXd RobotDriverUnitreeB1::get_joint_positions()
+{
+    const VectorXd qFR = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::FR);
+    const VectorXd qFL = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::FL);
+    const VectorXd qRR = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::RR);
+    const VectorXd qRL = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::RL);
+    VectorXd qlegs = VectorXd(qFR.size() + qFL.size() + qRR.size() + qRL.size());
+    qlegs << qFR, qFL, qRR, qRL;
+    return qlegs;
+}
+
+/**
+ * @brief Get the joint velocities of all four legs of the Unitree B1 robot
+ *
+ * Retrieves the current joint angular velocities for all 12 degrees of freedom (3 per leg)
+ * and concatenates them into a single state vector.
+ *
+ * @return VectorXd A 12-element vector with joint velocities in the format:
+ *         [FR_hip_dot, FR_thigh_dot, FR_calf_dot, FL_hip_dot, FL_thigh_dot, FL_calf_dot,
+ *          RR_hip_dot, RR_thigh_dot, RR_calf_dot, RL_hip_dot, RL_thigh_dot, RL_calf_dot]
+ */
+VectorXd RobotDriverUnitreeB1::get_joint_velocities()
+{
+    const VectorXd qFR_dot = impl_->unitree_b1_driver_->get_joint_velocities(DriverUnitreeB1::BRANCH::FR);
+    const VectorXd qFL_dot = impl_->unitree_b1_driver_->get_joint_velocities(DriverUnitreeB1::BRANCH::FL);
+    const VectorXd qRR_dot = impl_->unitree_b1_driver_->get_joint_velocities(DriverUnitreeB1::BRANCH::RR);
+    const VectorXd qRL_dot = impl_->unitree_b1_driver_->get_joint_velocities(DriverUnitreeB1::BRANCH::RL);
+    VectorXd qlegs_dot = VectorXd(qFR_dot.size() + qFL_dot.size() + qRR_dot.size() + qRL_dot.size());
+    qlegs_dot << qFR_dot, qFL_dot, qRR_dot, qRL_dot;
+    return qlegs_dot;
+}
+
+/**
+ * @brief Get the estimated joint torques of all four legs of the Unitree B1 robot
+ *
+ * Retrieves the current estimated joint torques for all 12 degrees of freedom (3 per leg)
+ * and concatenates them into a single state vector.
+ *
+ * @return VectorXd A 12-element vector with joint torques in the format:
+ *         [tFR_hip, tFR_thigh, tFR_calf, tFL_hip, tFL_thigh, tFL_calf,
+ *          tRR_hip, tRR_thigh, tRR_calf, tRL_hip, tRL_thigh, tRL_calf]
+ */
+VectorXd RobotDriverUnitreeB1::get_joint_torques()
+{
+    const VectorXd tFR = impl_->unitree_b1_driver_->get_joint_estimated_torques(DriverUnitreeB1::BRANCH::FR);
+    const VectorXd tFL = impl_->unitree_b1_driver_->get_joint_estimated_torques(DriverUnitreeB1::BRANCH::FL);
+    const VectorXd tRR = impl_->unitree_b1_driver_->get_joint_estimated_torques(DriverUnitreeB1::BRANCH::RR);
+    const VectorXd tRL = impl_->unitree_b1_driver_->get_joint_estimated_torques(DriverUnitreeB1::BRANCH::RL);
+    VectorXd tlegs = VectorXd(tFR.size() + tFL.size() + tRR.size() + tRL.size());
+    tlegs << tFR, tFL, tRR, tRL;
+    return tlegs;
+}
+
+void RobotDriverUnitreeB1::set_target_joint_positions(const VectorXd &desired_joint_positions_rad)
+{
+    throw std::runtime_error("RobotDriverUnitreeB1::set_target_joint_positions Not implemented");
+}
+
+
+void RobotDriverUnitreeB1::connect()
+{
+    impl_->unitree_b1_driver_->connect();
+}
+
+void RobotDriverUnitreeB1::disconnect()
+{
+    impl_->unitree_b1_driver_->disconnect();
+}
+
+void RobotDriverUnitreeB1::initialize()
+{
+    impl_->unitree_b1_driver_->initialize();
+}
+
+void RobotDriverUnitreeB1::deinitialize()
+{
+    impl_->unitree_b1_driver_->deinitialize();
+}
+
+void RobotDriverUnitreeB1::set_target_twist(const DQ &twist)
+{
+    throw std::runtime_error("RobotDriverUnitreeB1::get_twist() Not implemented");
+}
+
+void RobotDriverUnitreeB1::set_target_base_orientation(const DQ &r)
+{
+    throw std::runtime_error("RobotDriverUnitreeB1::set_target_base_orientation() Not implemented");
+}
+
+void RobotDriverUnitreeB1::set_target_base_height(const double &base_height)
+{
+    throw std::runtime_error("RobotDriverUnitreeB1::set_target_base_height Not implemented");
+}
+
 
 void RobotDriverUnitreeB1::_read_joint_states_and_publish()
 {
@@ -166,19 +299,19 @@ void RobotDriverUnitreeB1::_read_joint_states_and_publish()
     ros_msg_RR.header.stamp =  node_->get_clock()->now();
     ros_msg_RL.header.stamp =  node_->get_clock()->now();
 
-    VectorXd qFR = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::FR);
+    VectorXd qFR     = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::FR);
     VectorXd qFR_dot = impl_->unitree_b1_driver_->get_joint_velocities(DriverUnitreeB1::BRANCH::FR);
     VectorXd qFR_tau = impl_->unitree_b1_driver_->get_joint_estimated_torques(DriverUnitreeB1::BRANCH::FR);
 
-    VectorXd qFL = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::FL);
+    VectorXd qFL     = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::FL);
     VectorXd qFL_dot = impl_->unitree_b1_driver_->get_joint_velocities(DriverUnitreeB1::BRANCH::FL);
     VectorXd qFL_tau = impl_->unitree_b1_driver_->get_joint_estimated_torques(DriverUnitreeB1::BRANCH::FL);
 
-    VectorXd qRR = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::RR);
+    VectorXd qRR     = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::RR);
     VectorXd qRR_dot = impl_->unitree_b1_driver_->get_joint_velocities(DriverUnitreeB1::BRANCH::RR);
     VectorXd qRR_tau = impl_->unitree_b1_driver_->get_joint_estimated_torques(DriverUnitreeB1::BRANCH::RR);
 
-    VectorXd qRL = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::RL);
+    VectorXd qRL     = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::RL);
     VectorXd qRL_dot = impl_->unitree_b1_driver_->get_joint_velocities(DriverUnitreeB1::BRANCH::RL);
     VectorXd qRL_tau = impl_->unitree_b1_driver_->get_joint_estimated_torques(DriverUnitreeB1::BRANCH::RL);
 
@@ -361,35 +494,8 @@ void RobotDriverUnitreeB1::_set_target_stand_commands_from_subscriber()
     }
 }
 
-void RobotDriverUnitreeB1::_watchdog_set_maximum_acceptable_delay(const double &max_acceptable_delay)
-{
-    watchdog_maximum_acceptable_delay_in_seconds_ = max_acceptable_delay;
-}
 
-void RobotDriverUnitreeB1::_callback_watchdog_trigger_state(const sas_msgs::msg::WatchdogTrigger& msg)
-{
-    std::scoped_lock lock(mutex_watchdog_);
-
-    watchdog_enabled_ = true;
-    watchdog_trigger_status_ = msg.status;
-    watchdog_period_in_seconds_ = msg.period_in_seconds;
-    watchdog_maximum_acceptable_delay_in_seconds_ = msg.maximum_acceptable_delay_in_seconds;
-
-    //This time point corresponds to the moment the signal was sent, as recorded by the client computer's clock.
-    time_point_from_the_client_ = std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>(
-        std::chrono::seconds(msg.header.stamp.sec) + std::chrono::nanoseconds(msg.header.stamp.nanosec)
-        );
-
-    //This time point corresponds to the moment the sigal was received, as recorded by the server computer's clock.
-    time_point_from_the_server_ = std::chrono::system_clock::now();
-}
-
-bool RobotDriverUnitreeB1::is_watchdog_enabled() const
-{
-    return watchdog_enabled_;
-}
-
-
+/*
 
 void RobotDriverUnitreeB1::control_loop()
 {
@@ -469,6 +575,7 @@ void RobotDriverUnitreeB1::control_loop()
         RCLCPP_ERROR_STREAM(node_->get_logger(),"::Unexpected error or exception caught");
     }
 }
+*/
 
 
 /**
@@ -558,6 +665,7 @@ void RobotDriverUnitreeB1::_callback_mode_switch(const std_msgs::msg::Int32Multi
     }
 }
 
+/*
 void RobotDriverUnitreeB1::_callback_shutdown_signal_(const sas_msgs::msg::Bool &msg)
 {
     // Only update this member if it was never set to true.
@@ -565,8 +673,9 @@ void RobotDriverUnitreeB1::_callback_shutdown_signal_(const sas_msgs::msg::Bool 
     if (shutdown_signal_ == false)
         shutdown_signal_ = msg.data;
 }
+*/
 
-void RobotDriverUnitreeB1:: _callback_emergency_stop_device_signa_(const sas_msgs::msg::Bool& msg)
+void RobotDriverUnitreeB1::_callback_emergency_stop_device_signal(const sas_msgs::msg::Bool& msg)
 {
     // Only update this member if it was never set to true.
     // In other words, the driver is shut down if at least one received message is true.
@@ -574,104 +683,15 @@ void RobotDriverUnitreeB1:: _callback_emergency_stop_device_signa_(const sas_msg
         shutdown_signal_ = msg.data;
 }
 
-/**
- * @brief RobotDriverUnitreeB1::watchdog_start starts the watchdog thread
- * @param period The period of time.
- */
-void RobotDriverUnitreeB1::_watchdog_start(const std::chrono::nanoseconds& period)
-{
-    if (!watchdog_clock_)
-    {
-
-        watchdog_period_ =  std::chrono::duration_cast<std::chrono::duration<double>>(period).count();
-        // If the watchdog period is 1 second, the watchdog thread control is going to check five times per second.
-        watchdog_clock_ = std::make_unique<sas::Clock>(watchdog_period_/5.0);
-    }
-
-    if (!watchdog_thread_)
-        watchdog_thread_ = std::make_unique<std::thread>(&RobotDriverUnitreeB1::_watchdog_thread_function, this);
-}
-
-/**
- * @brief RobotDriverUnitreeB1::_watchdog_thread_function throws an exception if the elapsed time since the last watchdog time point from the server
- *        exceeds the specified period.
- */
-void RobotDriverUnitreeB1::_watchdog_thread_function()
-{
-
-    const double thread_freq =1.0/watchdog_clock_->get_desired_thread_sampling_time_sec();
-    watchdog_clock_->init();
-
-    while(!_should_shutdown())
-    {
-        try {
-            std::chrono::system_clock::time_point current_time = std::chrono::system_clock::now();
-            double elapsed_time;
-            double elapsed_time_same_clock;
-            bool wstatus;
-            {
-                std::scoped_lock lock(mutex_watchdog_);
-                elapsed_time = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - time_point_from_the_client_).count();
-                elapsed_time_same_clock = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - time_point_from_the_server_).count();
-                wstatus = watchdog_trigger_status_;
-            }
-
-            double clock_difference = std::abs(elapsed_time - elapsed_time_same_clock);
-            if (clock_difference > watchdog_maximum_acceptable_delay_in_seconds_)
-            {
-                throw std::runtime_error(
-                    std::string("RobotDriverUnitreeB1:: The watchdog signal is delayed, or the clocks between the client and server are out of synch! ") +
-                    "Watchdog signal delay: " + std::to_string(1000*clock_difference) +"ms."
-                    );
-                *st_break_loops_ = true; // Signal shutdown
-            }
 
 
-            if (elapsed_time_same_clock  >  watchdog_period_ )
-            {
-                throw std::runtime_error(
-                    std::string("RobotDriverUnitreeB1:: The watchdog signal was lost! ") +
-                    "The elapsed time was " + std::to_string(elapsed_time_same_clock) +
-                    " seconds, but the period is " + std::to_string( watchdog_period_ ) + ". There was a watchdog signal delay of " + std::to_string(1000*clock_difference) +
-                    "ms." +
-                    "The watchdog thread runs at " + std::to_string(thread_freq)+ "Hz."
-                    );
-                *st_break_loops_ = true; // Signal shutdown
-            }
 
-
-            if(!wstatus)
-            {
-                throw std::runtime_error("RobotDriverUnitreeB1:: The watchdog status is false!");
-                *st_break_loops_ = true; // Signal shutdown
-            }
-            watchdog_clock_->update_and_sleep();
-        }
-        catch(const std::exception& e) {
-            RCLCPP_ERROR_STREAM(node_->get_logger(), e.what());
-            *st_break_loops_ = true; // Signal shutdown
-            break;
-        }
-        catch(...) {
-            RCLCPP_ERROR_STREAM(node_->get_logger(), "Unknown watchdog exception");
-            *st_break_loops_ = true; // Signal shutdown
-            break;
-        }
-    }
-
-
-}
 
 
 RobotDriverUnitreeB1::~RobotDriverUnitreeB1()
 {
-    if (watchdog_thread_ && watchdog_thread_->joinable()) {
-        *st_break_loops_ = true; // Signal shutdown;  //To force the thread to shutdown if it hasn't already done so
-        watchdog_thread_->join();
-    }
+    *st_break_loops_ = true;
     impl_->unitree_b1_driver_->deinitialize();
-    impl_->unitree_b1_driver_->disconnect();
 }
-
 
 }

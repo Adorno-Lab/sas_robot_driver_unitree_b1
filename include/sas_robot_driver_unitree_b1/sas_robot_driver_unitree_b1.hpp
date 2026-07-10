@@ -38,8 +38,8 @@
 #include <sas_core/sas_clock.hpp>
 #include <sas_msgs/msg/watchdog_trigger.hpp>
 #include <sas_msgs/msg/bool.hpp>
-#include <sas_conversions/sas_conversions.hpp>
-
+#include <sas_core/sas_robot_driver.hpp>
+#include <sas_tools/LeggedRobotDriver.hpp>
 //using namespace Eigen;
 
 using namespace rclcpp;
@@ -61,7 +61,7 @@ struct RobotDriverUnitreeB1Configuration
 
 
 
-class RobotDriverUnitreeB1
+class RobotDriverUnitreeB1: public LeggedRobotDriver
 {
 protected:
     std::atomic_bool* st_break_loops_;
@@ -102,58 +102,21 @@ private:
     //bool new_target_velocities_available_{false};
     //-------------------------------------------------------------------------------------------------------//
 
-
-
-    Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr subscriber_target_twist_;
-    VectorXd target_twist_ = VectorXd::Zero(6);
-    void _callback_target_twist(const geometry_msgs::msg::TwistStamped& msg);
-    bool new_target_twist_available_{false};
-
-    //-------------------------------------------------------------------------------------------------------//
-    Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscriber_stand_commands_;
-    void _callback_stand_commands(const std_msgs::msg::Float64MultiArray& msg);
-    bool new_stand_commands_available_{false};
-    VectorXd target_stand_commands_ = VectorXd::Zero(4);
-    //-------------------------------------------------------------------------------------------------------//
-
-    Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr subscriber_mode_switch_;
-    void _callback_mode_switch(const std_msgs::msg::Int32MultiArray& msg);
-    //-------------------------------------------------------------------------------------------------------//
-
-    Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_shutdown_signal_;
-    void _callback_shutdown_signal_(const sas_msgs::msg::Bool& msg);
+   // Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_shutdown_signal_;
+   // void _callback_shutdown_signal_(const sas_msgs::msg::Bool& msg);
     bool shutdown_signal_;
 
 
     Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_emergency_stop_device_signal_;
-    void _callback_emergency_stop_device_signa_(const sas_msgs::msg::Bool& msg);
+    void _callback_emergency_stop_device_signal(const sas_msgs::msg::Bool& msg);
 
-    //------Watchdog-----------------------------------------------------------------
-    Subscription<sas_msgs::msg::WatchdogTrigger>::SharedPtr subscriber_watchdog_trigger_;
-    void _callback_watchdog_trigger_state(const sas_msgs::msg::WatchdogTrigger& msg);
-    bool watchdog_trigger_status_;
-    bool watchdog_enabled_;
-    bool is_watchdog_enabled() const;
-    bool watchdog_started_;
-    std::unique_ptr<sas::Clock> watchdog_clock_;
-    std::unique_ptr<std::thread> watchdog_thread_;
-    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> time_point_from_the_client_;
-    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> time_point_from_the_server_;
-    void _watchdog_thread_function();
-    void _watchdog_start(const std::chrono::nanoseconds& period);
-    //double max_acceptable_delay_ = 0.1;
-    double watchdog_period_;
-    double watchdog_period_in_seconds_;
-    double watchdog_maximum_acceptable_delay_in_seconds_;
-    //--------------------------------------------------------------------------------------
-
-
-    std::mutex mutex_watchdog_;
 
 
     //Implementation details that depend on FRI source files.
     class Impl;
     std::unique_ptr<Impl> impl_;
+
+    void _initial_settings();
 
 protected:
 
@@ -178,7 +141,34 @@ public:
                          const RobotDriverUnitreeB1Configuration &configuration,
                          std::atomic_bool* break_loops);
 
-    void control_loop();
+    RobotDriverUnitreeB1(std::shared_ptr<Node>& node,
+                         const RobotDriverUnitreeB1Configuration &configuration,
+                         const std::shared_ptr<ShutdownSignaler>& shutdown_signaler);
+
+    //void control_loop();
+
+
+    //----------RobotDriver----methods---------------------------------//
+
+    VectorXd get_joint_positions() override;
+    void set_target_joint_positions(const VectorXd& desired_joint_positions_rad) override;
+
+    //void set_target_joint_velocities(const VectorXd& desired_joint_velocities_rad_s) override;
+
+    VectorXd get_joint_velocities() override;
+    VectorXd get_joint_torques() override;
+
+    void connect() override;
+    void disconnect() override;
+
+    void initialize() override;
+    void deinitialize() override;
+
+    void set_target_twist(const DQ& twist) override;
+    void set_target_base_orientation(const DQ& r) override;
+    void set_target_base_height(const double& base_height) override;
+
+
 
 };
 
