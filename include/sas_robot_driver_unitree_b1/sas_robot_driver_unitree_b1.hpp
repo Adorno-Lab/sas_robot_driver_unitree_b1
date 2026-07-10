@@ -39,7 +39,7 @@
 #include <sas_msgs/msg/watchdog_trigger.hpp>
 #include <sas_msgs/msg/bool.hpp>
 #include <sas_core/sas_robot_driver.hpp>
-#include "LeggedRobotDriver.hpp"
+#include <sas_tools/LeggedRobotDriver.hpp>
 //using namespace Eigen;
 
 using namespace rclcpp;
@@ -112,6 +112,8 @@ private:
     class Impl;
     std::unique_ptr<Impl> impl_;
 
+    void _initial_settings();
+
 protected:
 
     void _read_joint_states_and_publish();
@@ -133,6 +135,10 @@ public:
                          const RobotDriverUnitreeB1Configuration &configuration,
                          std::atomic_bool* break_loops);
 
+    RobotDriverUnitreeB1(std::shared_ptr<Node>& node,
+                         const RobotDriverUnitreeB1Configuration &configuration,
+                         const std::shared_ptr<ShutdownSignaler>& shutdown_signaler);
+
     //void control_loop();
 
 
@@ -152,8 +158,13 @@ public:
     void initialize() override;
     void deinitialize() override;
 
-    void set_twist(const DQ& twist) override;
-    DQ get_twist() override;
+    void set_target_twist(const DQ& twist) override;
+
+    void set_target_base_orientation(const DQ& r) override;
+
+    void set_target_base_height(const double& base_height) override;
+
+
 
 };
 

@@ -11,14 +11,10 @@
  * SIGNAL HANDLER
  * *******************************************/
 #include<signal.h>
-
-static std::atomic_bool kill_this_process(false);
-
-void sig_int_handler(int);
-
+static std::shared_ptr<sas::ShutdownSignaler> shutdown_signaler = std::make_shared<sas::ShutdownSignaler>();
 void sig_int_handler(int)
 {
-    kill_this_process = true;
+    shutdown_signaler->shutdown();
 }
 
 int main(int argc, char** argv)
@@ -46,7 +42,7 @@ int main(int argc, char** argv)
 
         auto robot_driver_unitree_b1 = std::make_shared<sas::RobotDriverUnitreeB1>(node,
                                                                         robot_driver_unitree_b1_configuration,
-                                                                        &kill_this_process);
+                                                                        shutdown_signaler);
 
         RCLCPP_INFO_STREAM_ONCE(node->get_logger(), "::Loading parameters from parameter server.");
 
@@ -61,7 +57,7 @@ int main(int argc, char** argv)
         sas::RobotDriverROS robot_driver_ros(node,
                                              robot_driver_unitree_b1,
                                              robot_driver_ros_configuration,
-                                             &kill_this_process);
+                                             shutdown_signaler);
         robot_driver_ros.control_loop();
 
 

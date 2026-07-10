@@ -50,23 +50,13 @@ public:
 
 };
 
-RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
-                                           const RobotDriverUnitreeB1Configuration &configuration,
-                                           std::atomic_bool *break_loops)
-    :LeggedRobotDriver{break_loops},
-    st_break_loops_{break_loops},
-    topic_prefix_{configuration.robot_name},
-    configuration_{configuration},
-    node_{node},
-    timer_period_{0.002},
-    print_count_{0},
-    clock_{0.002},
-    shutdown_signal_{false}
+
+void RobotDriverUnitreeB1::_initial_settings()
 {
     impl_ = std::make_unique<RobotDriverUnitreeB1::Impl>();
 
     DriverUnitreeB1::MODE mode;
-    if (configuration.mode == "VelocityControl")
+    if (configuration_.mode == "VelocityControl")
     {
         mode = DriverUnitreeB1::MODE::VelocityControl;
     }else{
@@ -79,7 +69,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
 
 
     // I need to use the parameters of the configuration structure!
-    impl_->unitree_b1_driver_ = std::make_shared<DriverUnitreeB1>(break_loops,
+    impl_->unitree_b1_driver_ = std::make_shared<DriverUnitreeB1>(break_loops_,
                                                                   mode, // Driver mode
                                                                   DriverUnitreeB1::LEVEL::HIGH,       // Level mode
                                                                   true,   //verbosity
@@ -89,11 +79,6 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
                                                                   configuration_.ROBOT_PORT,// Target port  //8007 for low-level mode
                                                                   8090,
                                                                   custom_flags);
-
-
-
-
-
 
     // For backward compatibility
     publisher_FR_joint_states_ = node_->create_publisher<sensor_msgs::msg::JointState>(topic_prefix_ + "/get/FR_joint_states",1);
@@ -119,12 +104,12 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
 
 
 
-    subscriber_shutdown_signal_ = node->create_subscription<sas_msgs::msg::Bool>(
+    subscriber_shutdown_signal_ = node_->create_subscription<sas_msgs::msg::Bool>(
         topic_prefix_ + "/set/shutdown", 1,
         std::bind(&RobotDriverUnitreeB1::_callback_shutdown_signal_,  this, std::placeholders::_1)
         );
 
-    subscriber_emergency_stop_device_signal_ = node->create_subscription<sas_msgs::msg::Bool>(
+    subscriber_emergency_stop_device_signal_ = node_->create_subscription<sas_msgs::msg::Bool>(
         "/sas/set/shutdown", 1,
         std::bind(&RobotDriverUnitreeB1::_callback_shutdown_signal_,  this, std::placeholders::_1)
         );
@@ -143,6 +128,37 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
             *st_break_loops_ = true; // Signal shutdown
         }
     });
+}
+
+RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
+                                           const RobotDriverUnitreeB1Configuration &configuration,
+                                           std::atomic_bool *break_loops)
+    :LeggedRobotDriver{break_loops},
+    st_break_loops_{break_loops},
+    topic_prefix_{configuration.robot_name},
+    configuration_{configuration},
+    node_{node},
+    timer_period_{0.002},
+    print_count_{0},
+    clock_{0.002},
+    shutdown_signal_{false}
+{
+    _initial_settings();
+}
+
+RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
+                                           const RobotDriverUnitreeB1Configuration &configuration,
+                                           const std::shared_ptr<ShutdownSignaler> &shutdown_signaler)
+    :LeggedRobotDriver{shutdown_signaler},
+    topic_prefix_{configuration.robot_name},
+    configuration_{configuration},
+    node_{node},
+    timer_period_{0.002},
+    print_count_{0},
+    clock_{0.002},
+    shutdown_signal_{false}
+{
+    _initial_settings();
 }
 
 
@@ -235,15 +251,21 @@ void RobotDriverUnitreeB1::deinitialize()
     impl_->unitree_b1_driver_->deinitialize();
 }
 
-void RobotDriverUnitreeB1::set_twist(const DQ &twist)
+void RobotDriverUnitreeB1::set_target_twist(const DQ &twist)
 {
-
+    throw std::runtime_error("RobotDriverUnitreeB1::get_twist() Not implemented");
 }
 
-DQ RobotDriverUnitreeB1::get_twist()
+void RobotDriverUnitreeB1::set_target_base_orientation(const DQ &r)
 {
-
+    throw std::runtime_error("RobotDriverUnitreeB1::set_target_base_orientation() Not implemented");
 }
+
+void RobotDriverUnitreeB1::set_target_base_height(const double &base_height)
+{
+    throw std::runtime_error("RobotDriverUnitreeB1::set_target_base_height Not implemented");
+}
+
 
 void RobotDriverUnitreeB1::_read_joint_states_and_publish()
 {
@@ -496,6 +518,7 @@ void RobotDriverUnitreeB1:: _callback_emergency_stop_device_signal_(const sas_ms
     if (shutdown_signal_ == false)
         shutdown_signal_ = msg.data;
 }
+
 
 
 
