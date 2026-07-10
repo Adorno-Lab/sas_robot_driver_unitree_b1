@@ -151,6 +151,7 @@ void RobotDriverUnitreeB1::_initial_settings()
         _read_battery_state();
         _read_twist_state_and_publish();
         _set_target_velocities_from_subscriber();
+        _read_rpy_angles_state_and_publish();
 
         if (shutdown_signal_)
         {
