@@ -98,13 +98,13 @@ private:
     void _callback_target_holonomic_velocities(const std_msgs::msg::Float64MultiArray& msg);
     bool new_target_velocities_available_{false};
 
-    Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_shutdown_signal_;
-    void _callback_shutdown_signal_(const sas_msgs::msg::Bool& msg);
+   // Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_shutdown_signal_;
+   // void _callback_shutdown_signal_(const sas_msgs::msg::Bool& msg);
     bool shutdown_signal_;
 
 
     Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_emergency_stop_device_signal_;
-    void _callback_emergency_stop_device_signal_(const sas_msgs::msg::Bool& msg);
+    void _callback_emergency_stop_device_signal(const sas_msgs::msg::Bool& msg);
 
 
 
@@ -159,9 +159,7 @@ public:
     void deinitialize() override;
 
     void set_target_twist(const DQ& twist) override;
-
     void set_target_base_orientation(const DQ& r) override;
-
     void set_target_base_height(const double& base_height) override;
 
 

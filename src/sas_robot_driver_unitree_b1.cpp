@@ -103,15 +103,16 @@ void RobotDriverUnitreeB1::_initial_settings()
 
 
 
-
+/*
     subscriber_shutdown_signal_ = node_->create_subscription<sas_msgs::msg::Bool>(
         topic_prefix_ + "/set/shutdown", 1,
         std::bind(&RobotDriverUnitreeB1::_callback_shutdown_signal_,  this, std::placeholders::_1)
         );
+*/
 
     subscriber_emergency_stop_device_signal_ = node_->create_subscription<sas_msgs::msg::Bool>(
         "/sas/set/shutdown", 1,
-        std::bind(&RobotDriverUnitreeB1::_callback_shutdown_signal_,  this, std::placeholders::_1)
+        std::bind(&RobotDriverUnitreeB1::_callback_emergency_stop_device_signal,  this, std::placeholders::_1)
         );
 
     // set the callback here
@@ -227,7 +228,7 @@ VectorXd RobotDriverUnitreeB1::get_joint_torques()
 
 void RobotDriverUnitreeB1::set_target_joint_positions(const VectorXd &desired_joint_positions_rad)
 {
-
+    throw std::runtime_error("RobotDriverUnitreeB1::set_target_joint_positions Not implemented");
 }
 
 
@@ -503,6 +504,7 @@ void RobotDriverUnitreeB1::_callback_target_holonomic_velocities(const std_msgs:
     new_target_velocities_available_ = true;
 }
 
+/*
 void RobotDriverUnitreeB1::_callback_shutdown_signal_(const sas_msgs::msg::Bool &msg)
 {
     // Only update this member if it was never set to true.
@@ -510,8 +512,9 @@ void RobotDriverUnitreeB1::_callback_shutdown_signal_(const sas_msgs::msg::Bool 
     if (shutdown_signal_ == false)
         shutdown_signal_ = msg.data;
 }
+*/
 
-void RobotDriverUnitreeB1:: _callback_emergency_stop_device_signal_(const sas_msgs::msg::Bool& msg)
+void RobotDriverUnitreeB1::_callback_emergency_stop_device_signal(const sas_msgs::msg::Bool& msg)
 {
     // Only update this member if it was never set to true.
     // In other words, the driver is shut down if at least one received message is true.
