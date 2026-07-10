@@ -24,8 +24,8 @@ public:
     };
 
 protected:
-   // Mode current_mode_{Mode::Idle};
-  //  Mode target_mode_{Mode::Idle};
+    // Mode current_mode_{Mode::Idle};
+    //  Mode target_mode_{Mode::Idle};
 
 public:
     FreeFlyingRobotDriver(const FreeFlyingRobotDriver&)=delete;
@@ -45,18 +45,18 @@ public:
     virtual void deinitialize() override = 0;
 
     // Optional: Override these if needed, but can leave as default implementations
-   // virtual VectorXd get_joint_velocities() override;
-   // virtual VectorXd get_joint_torques() override;
-   // virtual void set_target_joint_velocities(const VectorXd& set_target_joint_velocities) override;
-   // virtual void set_target_joint_torques(const VectorXd& set_target_joint_torques) override;
+    // virtual VectorXd get_joint_velocities() override;
+    // virtual VectorXd get_joint_torques() override;
+    // virtual void set_target_joint_velocities(const VectorXd& set_target_joint_velocities) override;
+    // virtual void set_target_joint_torques(const VectorXd& set_target_joint_torques) override;
 
     // New free-flying specific methods - PURE VIRTUAL
     virtual void set_twist(const DQ& twist) = 0;
     virtual DQ get_twist() = 0;
 
     // Mode management (can be overridden by concrete classes)
-  //  void set_mode(const Mode& mode);
-  //  Mode get_mode() const;
+    //  void set_mode(const Mode& mode);
+    //  Mode get_mode() const;
 };
 
 }

@@ -131,7 +131,17 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
 
     // set the callback here
     set_control_loop_callback([this]() {
+        _read_joint_states_and_publish();
+        _read_imu_state_and_publish();
         _read_battery_state();
+        _read_twist_state_and_publish();
+        _set_target_velocities_from_subscriber();
+
+        if (shutdown_signal_)
+        {
+            throw std::runtime_error("The shutdown signal was received!");
+            *st_break_loops_ = true; // Signal shutdown
+        }
     });
 }
 
