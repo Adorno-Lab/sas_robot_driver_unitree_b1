@@ -1,5 +1,5 @@
 /*
-# (C) Copyright 2024-2025 Adorno-Lab software developments
+# (C) Copyright 2024-2026 Adorno-Lab software developments
 #
 #    This file is part of sas_robot_driver_unitree_b1.
 #
@@ -80,7 +80,7 @@ private:
     //also equivalent to rclcpp::TimerBase::SharedPtr
     std::shared_ptr<rclcpp::TimerBase> timer_;
 
-    Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_target_joint_positions_;
+    //Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_target_joint_positions_;
 
     Publisher<sensor_msgs::msg::JointState>::SharedPtr publisher_FR_joint_states_;
     Publisher<sensor_msgs::msg::JointState>::SharedPtr publisher_FL_joint_states_;
@@ -88,15 +88,19 @@ private:
     Publisher<sensor_msgs::msg::JointState>::SharedPtr publisher_RL_joint_states_;
 
     Publisher<sensor_msgs::msg::Imu>::SharedPtr publisher_IMU_state_;
+    Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_IMU_orientation_;
+    Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_last_IMU_orientation_when_robot_stopped_;
     Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_pose_state_;
     Publisher<sensor_msgs::msg::BatteryState>::SharedPtr publisher_battery_state_;
     Publisher<geometry_msgs::msg::TwistStamped>:: SharedPtr publisher_high_level_velocities_state_;
+    Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_rpy_angles_;
 
+    //----------------Deprecated subscription to command the robot in walking mode--------------------------//
     Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscriber_target_holonomic_velocities_;
-
-    VectorXd target_holonomic_velocities_ = VectorXd::Zero(3);
+    //VectorXd target_holonomic_velocities_ = VectorXd::Zero(3);
     void _callback_target_holonomic_velocities(const std_msgs::msg::Float64MultiArray& msg);
-    bool new_target_velocities_available_{false};
+    //bool new_target_velocities_available_{false};
+    //-------------------------------------------------------------------------------------------------------//
 
    // Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_shutdown_signal_;
    // void _callback_shutdown_signal_(const sas_msgs::msg::Bool& msg);
@@ -119,9 +123,11 @@ protected:
     void _read_joint_states_and_publish();
     void _read_imu_state_and_publish();
     void _read_twist_state_and_publish();
+    void _read_rpy_angles_state_and_publish();
     void _read_battery_state();
     bool _should_shutdown() const;
     void _set_target_velocities_from_subscriber();
+    void _set_target_stand_commands_from_subscriber();
 
     void _watchdog_set_maximum_acceptable_delay(const double& max_acceptable_delay);
 
