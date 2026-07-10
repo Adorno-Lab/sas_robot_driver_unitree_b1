@@ -131,7 +131,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
 
     // set the callback here
     set_control_loop_callback([this]() {
-
+        _read_battery_state();
     });
 }
 
@@ -247,19 +247,19 @@ void RobotDriverUnitreeB1::_read_joint_states_and_publish()
     ros_msg_RR.header.stamp =  node_->get_clock()->now();
     ros_msg_RL.header.stamp =  node_->get_clock()->now();
 
-    VectorXd qFR = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::FR);
+    VectorXd qFR     = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::FR);
     VectorXd qFR_dot = impl_->unitree_b1_driver_->get_joint_velocities(DriverUnitreeB1::BRANCH::FR);
     VectorXd qFR_tau = impl_->unitree_b1_driver_->get_joint_estimated_torques(DriverUnitreeB1::BRANCH::FR);
 
-    VectorXd qFL = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::FL);
+    VectorXd qFL     = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::FL);
     VectorXd qFL_dot = impl_->unitree_b1_driver_->get_joint_velocities(DriverUnitreeB1::BRANCH::FL);
     VectorXd qFL_tau = impl_->unitree_b1_driver_->get_joint_estimated_torques(DriverUnitreeB1::BRANCH::FL);
 
-    VectorXd qRR = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::RR);
+    VectorXd qRR     = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::RR);
     VectorXd qRR_dot = impl_->unitree_b1_driver_->get_joint_velocities(DriverUnitreeB1::BRANCH::RR);
     VectorXd qRR_tau = impl_->unitree_b1_driver_->get_joint_estimated_torques(DriverUnitreeB1::BRANCH::RR);
 
-    VectorXd qRL = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::RL);
+    VectorXd qRL     = impl_->unitree_b1_driver_->get_joint_positions(DriverUnitreeB1::BRANCH::RL);
     VectorXd qRL_dot = impl_->unitree_b1_driver_->get_joint_velocities(DriverUnitreeB1::BRANCH::RL);
     VectorXd qRL_tau = impl_->unitree_b1_driver_->get_joint_estimated_torques(DriverUnitreeB1::BRANCH::RL);
 
