@@ -97,10 +97,16 @@ private:
 
     //----------------Deprecated subscription to command the robot in walking mode--------------------------//
     Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscriber_target_holonomic_velocities_;
-    //VectorXd target_holonomic_velocities_ = VectorXd::Zero(3);
+    VectorXd target_holonomic_velocities_ = VectorXd::Zero(3);
     void _callback_target_holonomic_velocities(const std_msgs::msg::Float64MultiArray& msg);
-    //bool new_target_velocities_available_{false};
+    bool new_target_velocities_available_{false};
     //-------------------------------------------------------------------------------------------------------//
+
+    Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr subscriber_target_twist_;
+    VectorXd target_twist_ = VectorXd::Zero(6);
+    void _callback_target_twist(const geometry_msgs::msg::TwistStamped& msg);
+    bool new_target_twist_available_{false};
+
 
    // Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_shutdown_signal_;
    // void _callback_shutdown_signal_(const sas_msgs::msg::Bool& msg);
