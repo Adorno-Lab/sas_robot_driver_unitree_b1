@@ -48,8 +48,6 @@ int main(int argc, char** argv)
 
 
 
-        //robot_driver->control_loop();
-
         sas::RobotDriverROSConfiguration robot_driver_ros_configuration;
         sas::get_ros_parameter(node,"thread_sampling_time_sec",robot_driver_ros_configuration.thread_sampling_time_sec);
         robot_driver_ros_configuration.robot_driver_provider_prefix = node->get_name();
@@ -60,10 +58,6 @@ int main(int argc, char** argv)
                                              shutdown_signaler);
         robot_driver_ros.control_loop();
 
-
-
-
-
     }
     catch (const std::exception& e)
     {
@@ -71,7 +65,6 @@ int main(int argc, char** argv)
         std::cerr << std::string("::Exception::") << e.what();
     }
 
-   // sas::display_signal_handler_none_bug_info(node);
     return 0;
 
 
