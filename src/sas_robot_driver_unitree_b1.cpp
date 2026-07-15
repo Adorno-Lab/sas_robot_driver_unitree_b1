@@ -256,7 +256,7 @@ VectorXd RobotDriverUnitreeB1::get_joint_torques()
     return tlegs;
 }
 
-void RobotDriverUnitreeB1::set_target_joint_positions(const VectorXd &desired_joint_positions_rad)
+void RobotDriverUnitreeB1::set_target_joint_positions([[maybe_unused]] const VectorXd &desired_joint_positions_rad)
 {
     throw std::runtime_error("RobotDriverUnitreeB1::set_target_joint_positions Not implemented");
 }
@@ -284,15 +284,21 @@ void RobotDriverUnitreeB1::deinitialize()
 
 void RobotDriverUnitreeB1::set_target_twist(const DQ &twist)
 {
-    throw std::runtime_error("RobotDriverUnitreeB1::get_twist() Not implemented");
+    const VectorXd twist_vec = twist.vec6();
+    //    0  1  2  3  4  5
+    //   wx wy wz vx vy vz
+    double vx = twist_vec(3);
+    double vy = twist_vec(4);
+    double wz = twist_vec(2);
+    impl_->unitree_b1_driver_->set_high_level_speed(vx,vy,wz);
 }
 
-void RobotDriverUnitreeB1::set_target_base_orientation(const DQ &r)
+void RobotDriverUnitreeB1::set_target_base_orientation([[maybe_unused]] const DQ &r)
 {
     throw std::runtime_error("RobotDriverUnitreeB1::set_target_base_orientation() Not implemented");
 }
 
-void RobotDriverUnitreeB1::set_target_base_height(const double &base_height)
+void RobotDriverUnitreeB1::set_target_base_height([[maybe_unused]] const double &base_height)
 {
     throw std::runtime_error("RobotDriverUnitreeB1::set_target_base_height Not implemented");
 }
@@ -479,6 +485,7 @@ void RobotDriverUnitreeB1::_set_target_velocities_from_subscriber()
         double wz = target_twist_(2);
 
         impl_->unitree_b1_driver_->set_high_level_speed(vx,vy,wz);
+
         new_target_twist_available_ = false;
     }
 }
