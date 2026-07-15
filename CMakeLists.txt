@@ -15,6 +15,7 @@ find_package(sas_robot_driver REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(sas_tools REQUIRED)
 FIND_PACKAGE(Threads REQUIRED)
 
 
@@ -45,7 +46,7 @@ set(CMAKE_CXX_FLAGS "-O3 -fPIC")
 # into the same shared library called ${PROJECT_NAME}.
 
 add_library(${PROJECT_NAME} SHARED
-    src/unitree_b1_node.cpp
+    src/sas_robot_driver_unitree_b1.cpp
     src/DriverUnitreeB1.cpp
     )
 
@@ -54,7 +55,7 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 ament_target_dependencies(${PROJECT_NAME}
-rclcpp geometry_msgs std_msgs sensor_msgs sas_common sas_core sas_conversions Eigen3
+rclcpp geometry_msgs std_msgs sensor_msgs sas_common sas_core sas_conversions Eigen3 sas_tools
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -71,7 +72,7 @@ target_include_directories(${PROJECT_NAME}
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-Eigen3 rclcpp geometry_msgs std_msgs sensor_msgs sas_common sas_core sas_conversions
+Eigen3 rclcpp geometry_msgs std_msgs sensor_msgs sas_common sas_core sas_conversions sas_tools
     )
 
 install(
@@ -115,7 +116,7 @@ ament_target_dependencies(${RCLCPP_LOCAL_BINARY_NAME}
     sas_common
     sas_core
     sas_robot_driver
-
+    sas_tools
 
     )
 

@@ -4,20 +4,17 @@
 #include <sas_core/eigen3_std_conversions.hpp>
 //#include <sas_robot_driver_unitree_z1/sas_robot_driver_unitree_z1.hpp>
 #include <dqrobotics/utils/DQ_Math.h>
-#include "unitree_b1_node.hpp"
+#include <sas_robot_driver_unitree_b1/sas_robot_driver_unitree_b1.hpp>
+#include <sas_robot_driver/sas_robot_driver_ros.hpp>
 
 /*********************************************
  * SIGNAL HANDLER
  * *******************************************/
 #include<signal.h>
-
-static std::atomic_bool kill_this_process(false);
-
-void sig_int_handler(int);
-
+static std::shared_ptr<sas::ShutdownSignaler> shutdown_signaler = std::make_shared<sas::ShutdownSignaler>();
 void sig_int_handler(int)
 {
-    kill_this_process = true;
+    shutdown_signaler->shutdown();
 }
 
 int main(int argc, char** argv)
@@ -43,17 +40,23 @@ int main(int argc, char** argv)
                                         robot_driver_unitree_b1_configuration.FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO, false);
 
 
-        auto robot_driver = std::make_shared<sas::RobotDriverUnitreeB1>(node,
+        auto robot_driver_unitree_b1 = std::make_shared<sas::RobotDriverUnitreeB1>(node,
                                                                         robot_driver_unitree_b1_configuration,
-                                                                        &kill_this_process);
+                                                                        shutdown_signaler);
 
         RCLCPP_INFO_STREAM_ONCE(node->get_logger(), "::Loading parameters from parameter server.");
 
-        robot_driver->control_loop();
 
 
+        sas::RobotDriverROSConfiguration robot_driver_ros_configuration;
+        sas::get_ros_parameter(node,"thread_sampling_time_sec",robot_driver_ros_configuration.thread_sampling_time_sec);
+        robot_driver_ros_configuration.robot_driver_provider_prefix = node->get_name();
 
-
+        sas::RobotDriverROS robot_driver_ros(node,
+                                             robot_driver_unitree_b1,
+                                             robot_driver_ros_configuration,
+                                             shutdown_signaler);
+        robot_driver_ros.control_loop();
 
     }
     catch (const std::exception& e)
@@ -62,7 +65,6 @@ int main(int argc, char** argv)
         std::cerr << std::string("::Exception::") << e.what();
     }
 
-   // sas::display_signal_handler_none_bug_info(node);
     return 0;
 
 
