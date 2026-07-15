@@ -706,17 +706,24 @@ double DriverUnitreeB1::get_body_height() const
  */
 DQ DriverUnitreeB1::get_IMU_pose() const
 {
-    const DQ& r = IMU_orientation_;
+    if (is_unit(IMU_orientation_))
+    {
+        const DQ& r = IMU_orientation_;
 
-    // This value is used to match the the height in the CoppeliaSim model
-    const double hoffset = 0.025;
-    const VectorXd vec_auxp = odometry_position_.vec4();
-    const double x = vec_auxp(1);
-    const double y = vec_auxp(2);
-    const double z = body_height_ + hoffset;
-    const DQ p = x*i_ + y*j_ + z*k_;
+        // This value is used to match the the height in the CoppeliaSim model
+        const double hoffset = 0.025;
+        const VectorXd vec_auxp = odometry_position_.vec4();
+        const double x = vec_auxp(1);
+        const double y = vec_auxp(2);
+        const double z = body_height_ + hoffset;
+        const DQ p = x*i_ + y*j_ + z*k_;
 
-    return (r + E_*0.5*p*r).normalize();
+        return (r + E_*0.5*p*r).normalize();
+    }else
+    {
+        std::cerr<<"DriverUnitreeB1::get_IMU_pose(): The IMU orientation data is not a unit quaternion!"<<std::endl;
+        return DQ(1);
+    }
 }
 
 
