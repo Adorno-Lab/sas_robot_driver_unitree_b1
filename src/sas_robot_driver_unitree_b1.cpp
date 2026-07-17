@@ -146,16 +146,16 @@ void RobotDriverUnitreeB1::_initial_settings()
     // set the callback here
     set_control_loop_callback([this]() {
 
-        _read_joint_states_and_publish();
-        _read_imu_state_and_publish();
-        _read_battery_state();
-        _read_twist_state_and_publish();
-        _set_target_velocities_from_subscriber();
-        _read_rpy_angles_state_and_publish();
-
+        try {
+            _read_joint_states_and_publish();
+            _read_imu_state_and_publish();
+            _read_battery_state();
+            _read_twist_state_and_publish();
+            _set_target_velocities_from_subscriber();
+            _read_rpy_angles_state_and_publish();
+        } catch (...) {}
         if (shutdown_signal_)
             throw std::runtime_error("Emergency stop device: the shutdown signal was received!");
-
 
     });
 }
@@ -378,40 +378,65 @@ void RobotDriverUnitreeB1::_read_imu_state_and_publish()
 
     DQ rIMU_stopped = impl_->unitree_b1_driver_->get_last_IMU_orientation_when_robot_stopped();
 
+    if (is_unit(rIMU_stopped))
+    {
+        publisher_last_IMU_orientation_when_robot_stopped_->publish(sas::dq_to_geometry_msgs_pose_stamped(rIMU_stopped));
+    }
+
+
     DQ orientation = impl_->unitree_b1_driver_->get_IMU_orientation();
-    VectorXd vec_orientation = orientation.vec4();
-    ros_msg_imu.orientation.w = vec_orientation(0);
-    ros_msg_imu.orientation.x = vec_orientation(1);
-    ros_msg_imu.orientation.y = vec_orientation(2);
-    ros_msg_imu.orientation.z = vec_orientation(3);
 
-    VectorXd vec_angular_velocity = impl_->unitree_b1_driver_->get_IMU_gyroscope().vec3();
-    ros_msg_imu.angular_velocity.x = vec_angular_velocity(0);
-    ros_msg_imu.angular_velocity.y = vec_angular_velocity(1);
-    ros_msg_imu.angular_velocity.z = vec_angular_velocity(2);
+    if (is_unit(orientation))
+    {
+        VectorXd vec_orientation = orientation.vec4();
+        ros_msg_imu.orientation.w = vec_orientation(0);
+        ros_msg_imu.orientation.x = vec_orientation(1);
+        ros_msg_imu.orientation.y = vec_orientation(2);
+        ros_msg_imu.orientation.z = vec_orientation(3);
+        publisher_IMU_orientation_->publish(sas::dq_to_geometry_msgs_pose_stamped(orientation));
 
-    VectorXd vec_acceleration = impl_->unitree_b1_driver_->get_IMU_accelerometer().vec3();
-    ros_msg_imu.linear_acceleration.x = vec_acceleration(0);
-    ros_msg_imu.linear_acceleration.y = vec_acceleration(1);
-    ros_msg_imu.linear_acceleration.z = vec_acceleration(2);
+        VectorXd vec_angular_velocity = impl_->unitree_b1_driver_->get_IMU_gyroscope().vec3();
+        ros_msg_imu.angular_velocity.x = vec_angular_velocity(0);
+        ros_msg_imu.angular_velocity.y = vec_angular_velocity(1);
+        ros_msg_imu.angular_velocity.z = vec_angular_velocity(2);
 
-    VectorXd vec_position = impl_->unitree_b1_driver_->get_IMU_pose().translation().vec3();
-    ros_msg_pose.pose.position.x = vec_position(0);
-    ros_msg_pose.pose.position.y = vec_position(1);
-    ros_msg_pose.pose.position.z = vec_position(2);
+        VectorXd vec_acceleration = impl_->unitree_b1_driver_->get_IMU_accelerometer().vec3();
+        ros_msg_imu.linear_acceleration.x = vec_acceleration(0);
+        ros_msg_imu.linear_acceleration.y = vec_acceleration(1);
+        ros_msg_imu.linear_acceleration.z = vec_acceleration(2);
 
-    ros_msg_pose.pose.orientation.w = vec_orientation(0);
-    ros_msg_pose.pose.orientation.x = vec_orientation(1);
-    ros_msg_pose.pose.orientation.y = vec_orientation(2);
-    ros_msg_pose.pose.orientation.z = vec_orientation(3);
-
-    publisher_IMU_state_->publish(ros_msg_imu);
-    publisher_pose_state_->publish(ros_msg_pose);
+        publisher_IMU_state_->publish(ros_msg_imu);
+    }
 
 
-    publisher_IMU_orientation_->publish(sas::dq_to_geometry_msgs_pose_stamped(orientation));
 
-    publisher_last_IMU_orientation_when_robot_stopped_->publish(sas::dq_to_geometry_msgs_pose_stamped(rIMU_stopped));
+
+
+    DQ imu_pose = impl_->unitree_b1_driver_->get_IMU_pose();
+
+    if (is_unit(imu_pose))
+    {
+        VectorXd vec_position = imu_pose.translation().vec3();
+        VectorXd vec_rotation = imu_pose.rotation().vec4();
+
+        ros_msg_pose.pose.position.x = vec_position(0);
+        ros_msg_pose.pose.position.y = vec_position(1);
+        ros_msg_pose.pose.position.z = vec_position(2);
+
+        ros_msg_pose.pose.orientation.w = vec_rotation(0);
+        ros_msg_pose.pose.orientation.x = vec_rotation(1);
+        ros_msg_pose.pose.orientation.y = vec_rotation(2);
+        ros_msg_pose.pose.orientation.z = vec_rotation(3);
+        publisher_pose_state_->publish(ros_msg_pose);
+    }
+
+
+
+
+
+
+
+
 }
 
 void RobotDriverUnitreeB1::_read_twist_state_and_publish()
