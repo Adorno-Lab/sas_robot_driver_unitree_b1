@@ -136,12 +136,13 @@ void RobotDriverUnitreeB1::_initial_settings()
         topic_prefix_ + "/set/shutdown", 1,
         std::bind(&RobotDriverUnitreeB1::_callback_shutdown_signal_,  this, std::placeholders::_1)
         );
-*/
+
 
     subscriber_emergency_stop_device_signal_ = node_->create_subscription<sas_msgs::msg::Bool>(
         "/sas/set/shutdown", 1,
         std::bind(&RobotDriverUnitreeB1::_callback_emergency_stop_device_signal,  this, std::placeholders::_1)
         );
+*/
 
     // set the callback here
     set_control_loop_callback([this]() {
@@ -154,9 +155,6 @@ void RobotDriverUnitreeB1::_initial_settings()
             _set_target_velocities_from_subscriber();
             _read_rpy_angles_state_and_publish();
         } catch (...) {}
-        if (shutdown_signal_)
-            throw std::runtime_error("Emergency stop device: the shutdown signal was received!");
-
     });
 }
 
@@ -170,8 +168,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
     node_{node},
     timer_period_{0.002},
     print_count_{0},
-    clock_{0.002},
-    shutdown_signal_{false}
+    clock_{0.002}
 {
     _initial_settings();
 }
@@ -185,8 +182,7 @@ RobotDriverUnitreeB1::RobotDriverUnitreeB1(std::shared_ptr<Node> &node,
     node_{node},
     timer_period_{0.002},
     print_count_{0},
-    clock_{0.002},
-    shutdown_signal_{false}
+    clock_{0.002}
 {
     _initial_settings();
 }
@@ -434,9 +430,6 @@ void RobotDriverUnitreeB1::_read_imu_state_and_publish()
 
 
 
-
-
-
 }
 
 void RobotDriverUnitreeB1::_read_twist_state_and_publish()
@@ -490,12 +483,12 @@ void RobotDriverUnitreeB1::_read_battery_state()
 }
 
 
-
+/*
 bool RobotDriverUnitreeB1::_should_shutdown() const
 {
     return (*st_break_loops_);
 }
-
+*/
 
 
 void RobotDriverUnitreeB1::_set_target_velocities_from_subscriber()
@@ -685,7 +678,7 @@ void RobotDriverUnitreeB1::_callback_shutdown_signal_(const sas_msgs::msg::Bool 
     if (shutdown_signal_ == false)
         shutdown_signal_ = msg.data;
 }
-*/
+
 
 void RobotDriverUnitreeB1::_callback_emergency_stop_device_signal(const sas_msgs::msg::Bool& msg)
 {
@@ -695,6 +688,8 @@ void RobotDriverUnitreeB1::_callback_emergency_stop_device_signal(const sas_msgs
         shutdown_signal_ = msg.data;
 }
 
+*/
+
 
 
 
@@ -702,8 +697,7 @@ void RobotDriverUnitreeB1::_callback_emergency_stop_device_signal(const sas_msgs
 
 RobotDriverUnitreeB1::~RobotDriverUnitreeB1()
 {
-    *st_break_loops_ = true;
-    impl_->unitree_b1_driver_->deinitialize();
+
 }
 
 }

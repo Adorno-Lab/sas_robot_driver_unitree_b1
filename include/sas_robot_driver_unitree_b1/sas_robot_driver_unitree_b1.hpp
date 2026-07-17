@@ -110,11 +110,11 @@ private:
 
    // Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_shutdown_signal_;
    // void _callback_shutdown_signal_(const sas_msgs::msg::Bool& msg);
-    bool shutdown_signal_;
+   // bool shutdown_signal_;
 
 
-    Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_emergency_stop_device_signal_;
-    void _callback_emergency_stop_device_signal(const sas_msgs::msg::Bool& msg);
+   // Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_emergency_stop_device_signal_;
+   // void _callback_emergency_stop_device_signal(const sas_msgs::msg::Bool& msg);
 
 
 
@@ -131,11 +131,10 @@ protected:
     void _read_twist_state_and_publish();
     void _read_rpy_angles_state_and_publish();
     void _read_battery_state();
-    bool _should_shutdown() const;
+   // bool _should_shutdown() const;
     void _set_target_velocities_from_subscriber();
     void _set_target_stand_commands_from_subscriber();
 
-    void _watchdog_set_maximum_acceptable_delay(const double& max_acceptable_delay);
 
 public:
 
