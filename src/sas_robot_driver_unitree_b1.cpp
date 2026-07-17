@@ -154,10 +154,9 @@ void RobotDriverUnitreeB1::_initial_settings()
         _read_rpy_angles_state_and_publish();
 
         if (shutdown_signal_)
-        {
-            throw std::runtime_error("The shutdown signal was received!");
-            *st_break_loops_ = true; // Signal shutdown
-        }
+            throw std::runtime_error("Emergency stop device: the shutdown signal was received!");
+
+
     });
 }
 
