@@ -88,7 +88,7 @@ void RobotDriverUnitreeB1::_initial_settings()
     publisher_RR_joint_states_ = node_->create_publisher<sensor_msgs::msg::JointState>(topic_prefix_ + "/get/RR_joint_states",1);
     publisher_RL_joint_states_ = node_->create_publisher<sensor_msgs::msg::JointState>(topic_prefix_ + "/get/RL_joint_states",1);
 
-    publisher_rpy_angles_ = node_->create_publisher<std_msgs::msg::Float64MultiArray>(topic_prefix_ + "/get/rpy_angles", 1);
+  //  publisher_rpy_angles_ = node_->create_publisher<std_msgs::msg::Float64MultiArray>(topic_prefix_ + "/get/rpy_angles", 1);
     publisher_IMU_state_ = node_->create_publisher<sensor_msgs::msg::Imu>(topic_prefix_ + "/get/IMU_state", 1);
     publisher_pose_state_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(topic_prefix_ + "/get/pose_state", 1);
     publisher_high_level_velocities_state_ = node_->create_publisher<geometry_msgs::msg::TwistStamped>(topic_prefix_ + "/get/twist_state", 1);
@@ -96,7 +96,7 @@ void RobotDriverUnitreeB1::_initial_settings()
     publisher_battery_state_ = node_->create_publisher<sensor_msgs::msg::BatteryState>(topic_prefix_ + "/get/battery_state", 1);
 
     publisher_IMU_orientation_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(topic_prefix_ + "/get/imu_orientation",1);
-    publisher_last_IMU_orientation_when_robot_stopped_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(topic_prefix_ + "/get/last_imu_orientation_when_robot_stopped",1);
+   // publisher_last_IMU_orientation_when_robot_stopped_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(topic_prefix_ + "/get/last_imu_orientation_when_robot_stopped",1);
 
     subscriber_target_holonomic_velocities_ = node_->create_subscription<std_msgs::msg::Float64MultiArray>(
         topic_prefix_ + "/set/holonomic_target_velocities",
@@ -153,7 +153,7 @@ void RobotDriverUnitreeB1::_initial_settings()
             _read_battery_state();
             _read_twist_state_and_publish();
             _set_target_velocities_from_subscriber();
-            _read_rpy_angles_state_and_publish();
+            //_read_rpy_angles_state_and_publish();
         } catch (...) {}
     });
 }
@@ -371,13 +371,14 @@ void RobotDriverUnitreeB1::_read_imu_state_and_publish()
     geometry_msgs::msg::PoseStamped ros_msg_pose;
     ros_msg_pose.header.stamp = node_->get_clock()->now();
 
-
+/*
     DQ rIMU_stopped = impl_->unitree_b1_driver_->get_last_IMU_orientation_when_robot_stopped();
 
     if (is_unit(rIMU_stopped))
     {
         publisher_last_IMU_orientation_when_robot_stopped_->publish(sas::dq_to_geometry_msgs_pose_stamped(rIMU_stopped));
     }
+*/
 
 
     DQ orientation = impl_->unitree_b1_driver_->get_IMU_orientation();
@@ -450,7 +451,7 @@ void RobotDriverUnitreeB1::_read_twist_state_and_publish()
     publisher_high_level_velocities_state_->publish(ros_msg_twist);
 
 }
-
+/*
 void RobotDriverUnitreeB1::_read_rpy_angles_state_and_publish()
 {
     std_msgs::msg::Float64MultiArray msg;
@@ -471,7 +472,7 @@ void RobotDriverUnitreeB1::_read_rpy_angles_state_and_publish()
     // Publish the message
     publisher_rpy_angles_->publish(msg);
 }
-
+*/
 void RobotDriverUnitreeB1::_read_battery_state()
 {
     sensor_msgs::msg::BatteryState ros_msg_battery;
