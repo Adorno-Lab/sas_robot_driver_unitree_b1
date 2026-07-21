@@ -66,18 +66,18 @@ public:
  * @param mode  The operation mode. Select the control strategy to command the robot.
  * @param level The control level to be used. HIGH or LOW.
  *              The HIGH level is used to send task space commands
- *              to the robot. The robot constraints are handled by the own robot  using a Unitree internal controller.
+ *              to the robot. The robot constraints are handled by the robot itself using a Unitree internal controller.
  *              The LOW mode is used to send joint position, velocity or torque commands. In this case, you must take into account
- *              all constraints in your controler (joint limits, control input limits, robot balance, self-collision avoidance, etc).
+ *              all constraints in your controller (joint limits, control input limits, robot balance, self-collision avoidance, etc).
  * @param verbosity Use true (default) to display more information in the terminal.
- * @param TIMEOUT_IN_MILLISECONDS The max time in milliseconds to establish the communication to the robot before to throw an exception.
+ * @param TIMEOUT_IN_MILLISECONDS The max time in milliseconds to establish communication with the robot before throwing an exception.
  * @param LIE_DOWN_ROBOT_WHEN_DEINITIALIZE Use this flag to put the robot on the ground when the driver is deinitialized.
  * @param TARGET_IP The IP address of the B1 robot to perform the communication. You can use a
  *                  LAN cable connection or a WiFI network to establish the communication.
  *
  * @param TARGET_PORT The default port of the B1 robot.
  * @param LOCAL_PORT The communication port of the PC that is running the code.
- * @param custom_flags Additional flags to modify the robot behavior.
+ * @param custom_flags Additional flags to modify the robot behaviour.
  *
  *
  *
@@ -99,14 +99,14 @@ public:
 
 
             B1.connect();     // First method to be called.
-            B1.initialize();  // Second method to be called. It is required to connect before to initialize.
+            B1.initialize();  // Second method to be called. It is required to connect before initialising.
 
             //Your code here
             B1.set_high_level_speed(-0.03, 0, 0.0);  //0.03 is the minimum value in forward speed.
             //
 
             B1.deinitialize();  // Third method to be called.
-            B1.disconnect();    // Fourth method to be called. It is required to deinitialize before to disconnect.
+            B1.disconnect();    // Fourth method to be called. It is required to deinitialize before disconnecting.
 
  */
 DriverUnitreeB1::DriverUnitreeB1(std::atomic_bool *st_break_loops,
@@ -223,7 +223,7 @@ std::string DriverUnitreeB1::get_status_message() const
 
 /**
  * @brief DriverUnitreeB1::get_udp_status returns the UDP communication status.
- * @return a 7-dimensional vector containing the UDP communication status. The vector containts
+ * @return a 7-dimensional vector containing the UDP communication status. The vector contains
  *      the following ordered data:
  *
  *       unsigned long long TotalCount;	  // total loop count
@@ -267,7 +267,7 @@ void DriverUnitreeB1::_UDPSend()
 }
 
 /**
- * @brief DriverUnitreeB1::_update_udp_status updates the UDP status if the data it is initialized.
+ * @brief DriverUnitreeB1::_update_udp_status updates the UDP status if the data is initialised.
  *
  */
 void DriverUnitreeB1::_update_udp_status()
@@ -287,9 +287,9 @@ void DriverUnitreeB1::_update_udp_status()
  * @param mode The operation mode. Select the control strategy to command the robot.
  * @param level The control level to be used. HIGH or LOW.
  *              The HIGH level is used to send task space commands
- *              to the robot. The robot constraints are handled by the own robot  using a Unitree internal controller.
+ *              to the robot. The robot constraints are handled by the robot itself using a Unitree internal controller.
  *              The LOW mode is used to send joint position, velocity or torque commands. In this case, you must take into account
- *              all constraints in your controler (joint limits, control input limits, robot balance, self-collision avoidance, etc).
+ *              all constraints in your controller (joint limits, control input limits, robot balance, self-collision avoidance, etc).
  */
 void DriverUnitreeB1::_set_driver_mode(const MODE &mode, const LEVEL &level)
 {
@@ -355,7 +355,7 @@ void DriverUnitreeB1::_initialize_high_cmd_variable()
  * @param a A double
  * @param b A double
  * @param epsilon the tolerance
- * @return returns true if two doubles are approximately equal. False otherwise
+ * @return Returns true if two doubles are approximately equal. False otherwise
  */
 bool DriverUnitreeB1::are_approximately_equal(const double &a, const double &b, const double &epsilon)
 {
@@ -461,14 +461,14 @@ void DriverUnitreeB1::initialize()
         current_status_ = STATUS::INITIALIZED;
         status_msg_ = "Initialized!";
     }else{
-        std::cerr<<"RobotDriverUnitreeB1::initialize. The driver must be connected before to be initialized. "<<std::endl;
+        std::cerr<<"RobotDriverUnitreeB1::initialize. The driver must be connected before being initialised. "<<std::endl;
     }
 }
 
 
 /**
  * @brief DriverUnitreeB1::deinitialize stops all communication threads.
- *                  This method requires initialized communication with the robot, i.e. the user must call both connect(),
+ *                  This method requires initialised communication with the robot, i.e. the user must call both connect(),
  *                  and initialize() before calling deinitialize().
  */
 void DriverUnitreeB1::deinitialize()
@@ -689,7 +689,7 @@ DQ DriverUnitreeB1::get_IMU_pose() const
 {
     const DQ& r = IMU_orientation_;
 
-    // This value is used to match the the height in the CoppeliaSim model
+    // This value is used to match the height in the CoppeliaSim model
     const double hoffset = 0.025;
     const VectorXd vec_auxp = odometry_position_.vec4();
     const double x = vec_auxp(1);
@@ -964,7 +964,7 @@ void DriverUnitreeB1::_robot_control()
  *
  *
  * @param forward_vel The target forward velocity.
- * @param side_vel The garget side velocity.
+ * @param side_vel The target side velocity.
  * @param yaw_speed The target yaw velocity.
  */
 void DriverUnitreeB1::_command_in_high_level_mode(const HIGH_LEVEL_MODE& high_level_mode,
@@ -1043,7 +1043,7 @@ void DriverUnitreeB1::_robot_update()
 /**
  * @brief DriverUnitreeB1::_update_joint_data updates the robot state related to the legs. This includes the joint positions, velocities,
  *                      accelerations, torques, and motor temperatures.
- * @param state The high-level of low-level structure to store the robot data.
+ * @param state The high-level or low-level structure to store the robot data.
  */
 template<typename T>
 void DriverUnitreeB1::_update_joint_data(const T &state)
@@ -1104,7 +1104,7 @@ void DriverUnitreeB1::_update_IMU_data(const T &state)
 
 /**
  * @brief DriverUnitreeB1::_update_battery_data updates the battery data.
- * @param state The high-level of low-level structure to store the robot data.
+ * @param state The high-level or low-level structure to store the robot data.
  */
 template<typename T>
 void DriverUnitreeB1::_update_battery_data(const T &state)
