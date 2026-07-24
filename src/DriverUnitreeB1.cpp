@@ -910,12 +910,12 @@ void DriverUnitreeB1::_robot_control()
 
                     if (motiontime_ >= frozen_time && motiontime_ < frozen_time + quick_stop_duration)
                     {
-                        std::cout<<"Stopping (fast deinit)...  "<< frozen_time+quick_stop_duration-motiontime_<<std::endl;
+                        std::cerr<<"Stopping (fast deinit)...  "<< frozen_time+quick_stop_duration-motiontime_<<std::endl;
                         _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0, 0, 0);
                     }
                     else
                     {
-                        std::cout<<"IDLE (fast deinit)"<<std::endl;
+                        std::cerr<<"IDLE (fast deinit)"<<std::endl;
                         _command_in_high_level_mode(HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND, 0, 0, 0);
                         the_robot_is_ready_to_deinitialize_ = true;
                     }

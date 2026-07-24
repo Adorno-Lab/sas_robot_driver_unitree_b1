@@ -127,7 +127,7 @@ private:
     bool verbosity_;
     int timeout_in_milliseconds_;
     bool LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_;
-    unsigned long long quick_stop_duration_ = 500; //  smaller = faster to deinitialize, but less controlled stop
+    unsigned long long quick_stop_duration_ = 1500; //  smaller = faster to deinitialize, but less controlled stop
 
     MODE mode_{MODE::None};
 
