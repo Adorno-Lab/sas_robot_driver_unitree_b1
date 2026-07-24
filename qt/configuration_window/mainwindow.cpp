@@ -200,6 +200,7 @@ void MainWindow::update_dial_select_robot()
 
 void MainWindow::update_dial_change_operation_high_level_mode()
 {
+    /*
     if (unitree_b1_driver_)
     {
         int dial = ui->dial_change_operation_high_level_mode_->sliderPosition();
@@ -208,6 +209,7 @@ void MainWindow::update_dial_change_operation_high_level_mode()
         if (dial == 1)
             unitree_b1_driver_->request_change_in_high_level_control(DriverUnitreeB1::HIGH_LEVEL_MODE::FORCED_STAND);
     }
+  */
 }
 
 void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
@@ -238,7 +240,7 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
         ui->label_status_->setText(QString(status_msg.c_str()));
 
         unitree_b1_driver_->set_high_level_speed(target_forward_speed_, target_side_speed_, target_yaw_speed_);
-        unitree_b1_driver_->set_forced_stand_commands(target_roll_, target_pitch_, target_yaw_, target_height_);
+        //unitree_b1_driver_->set_forced_stand_commands(target_roll_, target_pitch_, target_yaw_, target_height_);
 
         VectorXd w = unitree_b1_driver_->get_high_level_angular_velocity().vec3();
         VectorXd v   = unitree_b1_driver_->get_high_level_linear_velocity().vec3();
@@ -271,6 +273,7 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
 
         Eigen::Vector3d  rpy_from_orientation = _compute_euler_angles_from_unit_quaternion(r_0b);
 
+        /*
         // Your existing RPY angles from driver
         Eigen::Vector3d rpy_from_driver = unitree_b1_driver_->get_IMU_rpy_angles();
 
@@ -289,6 +292,7 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
         ui->doubleSpinBox_computed_roll_->setValue(rpy_from_orientation.x());
         ui->doubleSpinBox_computed_pitch_->setValue(rpy_from_orientation.y());
         ui->doubleSpinBox_computed_yaw_->setValue(rpy_from_orientation.z());
+        */
 
         // Print comparison
         std::cout << "========== RPY ANGLE COMPARISON ==========" << std::endl;
@@ -299,7 +303,7 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
                   << std::setw(15) << "Yaw (Z)" << std::endl;
         std::cout << "----------------------------------------------" << std::endl;
 
-
+/*
         std::cout << std::setw(15) << "Manual Extraction"
                   << std::setw(15) << rpy_from_orientation.x()
                   << std::setw(15) << rpy_from_orientation.y()
@@ -314,6 +318,7 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
                   << std::setw(15) << rpy_rel.x()
                   << std::setw(15) << rpy_rel.y()
                   << std::setw(15) << rpy_rel.z()  << " rad" << std::endl;
+*/
 
         std::cout << "==============================================" << std::endl;
 
@@ -326,6 +331,8 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
 
 
         ui->progressBar_battery->setValue(unitree_b1_driver_->get_state_of_charge());
+
+        /*
 
         std::string current_mode = unitree_b1_driver_->high_level_mode_to_string(
                                    unitree_b1_driver_->get_current_high_mode());
@@ -342,6 +349,7 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
         ui->doubleSpinBox_read_roll_->setValue(rpy.x());
         ui->doubleSpinBox_read_pitch_->setValue(rpy.y());
         ui->doubleSpinBox_read_yaw_->setValue(rpy.z());
+        */
 
         ui->doubleSpinBox_read_height_->setValue(unitree_b1_driver_->get_body_height());
 
