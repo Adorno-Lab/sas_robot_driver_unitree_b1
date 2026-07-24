@@ -490,8 +490,6 @@ void DriverUnitreeB1::deinitialize()
     _show_status();
 
     current_status_ = STATUS::DEINITIALIZED;
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     status_msg_ = "Deinitialized!";
     _show_status();
 }
@@ -903,44 +901,60 @@ void DriverUnitreeB1::_robot_control()
             }else{
                 // This part of the code is executed when the driver is deinitialized.
                 static unsigned long long frozen_time = motiontime_;
-                const int deltatime = 3000;
-                if (motiontime_>= frozen_time && motiontime_ < frozen_time+deltatime)
-                {
-                    //show_high_mode();
-                    std::cout<<"Stopping...  "<< frozen_time+deltatime-motiontime_<<std::endl;
-                    _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0, 0, 0);//Stop the robot
-                }
-                else if (motiontime_>= frozen_time+deltatime && motiontime_ < frozen_time+2*deltatime)
-                {
-                    //show_high_mode();
 
+                if (!LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_)
+                {
+                    // FAST PATH: no lie-down requirement.
+                    // Just kill the walking velocity for a short window, then go idle.
+                    const int quick_stop_duration = quick_stop_duration_; // e.g. 500 instead of 3000
 
-                    if (current_high_level_mode_ == HIGH_LEVEL_MODE::DAMPING_MODE)
+                    if (motiontime_ >= frozen_time && motiontime_ < frozen_time + quick_stop_duration)
                     {
-                        std::cout<<"ROBOT IS DAMPING MODE. I WILL IGNORE THE POSITION_STAND_UP... "<<frozen_time + 2*deltatime -motiontime_<<std::endl;
-                    }else
+                        std::cout<<"Stopping (fast deinit)...  "<< frozen_time+quick_stop_duration-motiontime_<<std::endl;
+                        _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0, 0, 0);
+                    }
+                    else
                     {
-                        std::cout<<"POSITION_STAND_UP... "<<frozen_time + 2*deltatime -motiontime_<<std::endl;
-                        _command_in_high_level_mode(HIGH_LEVEL_MODE::POSITION_STAND_UP, 0, 0, 0); // Stand up pose
+                        std::cout<<"IDLE (fast deinit)"<<std::endl;
+                        _command_in_high_level_mode(HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND, 0, 0, 0);
+                        the_robot_is_ready_to_deinitialize_ = true;
                     }
                 }
-                else if (motiontime_>= frozen_time+2*deltatime && motiontime_ < frozen_time+ 3*deltatime && LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_)
-                {
-                    //show_high_mode();
-                    std::cout<<"POSITION_STAND_DOWN... "<<frozen_time + 3*deltatime -motiontime_<<std::endl;
-                    _command_in_high_level_mode(HIGH_LEVEL_MODE::POSITION_STAND_DOWN, 0, 0, 0);//Stand down pose
-                }
-                else if (motiontime_>= frozen_time+ 3*deltatime && motiontime_ < frozen_time+ 4*deltatime && LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_)
-                {
-                    //show_high_mode();
-                    std::cout<<"DAMPING_MODE... "<<frozen_time + 4*deltatime -motiontime_<<std::endl;
-                    _command_in_high_level_mode(HIGH_LEVEL_MODE::DAMPING_MODE, 0, 0, 0);//Damping mode
-                }
                 else{
-                    show_high_mode();
-                    std::cout<<"IDLE"<<std::endl;
-                    _command_in_high_level_mode(HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND, 0, 0, 0); //IDLE
-                    the_robot_is_ready_to_deinitialize_ = true;
+                    // Original full sequence: stop -> stand up -> stand down -> damping -> idle
+                    const int deltatime = 3000;
+                    if (motiontime_>= frozen_time && motiontime_ < frozen_time+deltatime)
+                    {
+                        std::cout<<"Stopping...  "<< frozen_time+deltatime-motiontime_<<std::endl;
+                        _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0, 0, 0);
+                    }
+                    else if (motiontime_>= frozen_time+deltatime && motiontime_ < frozen_time+2*deltatime)
+                    {
+                        if (current_high_level_mode_ == HIGH_LEVEL_MODE::DAMPING_MODE)
+                        {
+                            std::cout<<"ROBOT IS DAMPING MODE. I WILL IGNORE THE POSITION_STAND_UP... "<<frozen_time + 2*deltatime -motiontime_<<std::endl;
+                        }else
+                        {
+                            std::cout<<"POSITION_STAND_UP... "<<frozen_time + 2*deltatime -motiontime_<<std::endl;
+                            _command_in_high_level_mode(HIGH_LEVEL_MODE::POSITION_STAND_UP, 0, 0, 0);
+                        }
+                    }
+                    else if (motiontime_>= frozen_time+2*deltatime && motiontime_ < frozen_time+ 3*deltatime)
+                    {
+                        std::cout<<"POSITION_STAND_DOWN... "<<frozen_time + 3*deltatime -motiontime_<<std::endl;
+                        _command_in_high_level_mode(HIGH_LEVEL_MODE::POSITION_STAND_DOWN, 0, 0, 0);
+                    }
+                    else if (motiontime_>= frozen_time+ 3*deltatime && motiontime_ < frozen_time+ 4*deltatime)
+                    {
+                        std::cout<<"DAMPING_MODE... "<<frozen_time + 4*deltatime -motiontime_<<std::endl;
+                        _command_in_high_level_mode(HIGH_LEVEL_MODE::DAMPING_MODE, 0, 0, 0);
+                    }
+                    else{
+                        show_high_mode();
+                        std::cout<<"IDLE"<<std::endl;
+                        _command_in_high_level_mode(HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND, 0, 0, 0);
+                        the_robot_is_ready_to_deinitialize_ = true;
+                    }
                 }
             }
         }

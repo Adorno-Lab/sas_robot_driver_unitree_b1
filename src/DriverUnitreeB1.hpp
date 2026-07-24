@@ -116,9 +116,6 @@ private:
     class Impl;
     std::shared_ptr<Impl> impl_;
 
-
-
-
     double high_level_forward_speed_{0};
     double high_level_side_speed_{0};
     double high_level_yaw_speed_{0};
@@ -130,6 +127,7 @@ private:
     bool verbosity_;
     int timeout_in_milliseconds_;
     bool LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_;
+    unsigned long long quick_stop_duration_ = 500; //  smaller = faster to deinitialize, but less controlled stop
 
     MODE mode_{MODE::None};
 
