@@ -1,38 +1,34 @@
 #pragma once
 #include <atomic>
+#include <chrono>
+#include <iostream>
 #include <memory>
+#include <thread>
 #include <unitree_legged_sdk/unitree_legged_sdk.h>
 
 class dummy_driver
 {
-private:
-    unsigned long long motiontime_{0};
-    unsigned long long frozen_time_{0};
-    std::atomic<bool> finish_motion_to_deinitialize_{false};
-    std::atomic<bool> the_robot_is_ready_to_deinitialize_{false};
-
-    std::atomic<bool> inside_callback = false;
-protected:
-    std::atomic_bool* st_break_loops_;
-    double dt_;
-    std::shared_ptr<UNITREE_LEGGED_SDK::LoopFunc> loop_control_;
-    std::shared_ptr<UNITREE_LEGGED_SDK::LoopFunc> loop_echo_state_;
-
-    void _robot_control();
-    void _robot_update();
-
 public:
-    dummy_driver() = delete;
-    dummy_driver(const dummy_driver&) = delete;
-    dummy_driver& operator= (const dummy_driver&) = delete;
-    dummy_driver(std::atomic_bool* st_break_loops, const double& time_step);
+    dummy_driver();
+    ~dummy_driver();
 
-    void connect();
-    void initialize();
-    void deinitialize();
-    void disconnect();
+    // Test 1: shutdown() called *while* the callback is mid-execution
+    // (sleeping). Confirms whether shutdown() blocks (join-like) until
+    // the callback returns, or returns immediately (detach-like).
+    void run_test_shutdown_while_running();
 
-    unsigned long long get_motion_time() const;
+    // Test 2: shutdown() called *before* the callback has ever started.
+    // Confirms shutdown() doesn't always block for some fixed/long
+    // duration regardless of callback state -- i.e. it's not just
+    // "always waits ~10s no matter what".
+    void run_test_shutdown_before_start();
+
+private:
+    std::atomic<bool> callback_started_{false};
+    std::atomic<bool> callback_finished_{false};
+    unsigned long long counter_{0};
+    std::shared_ptr<UNITREE_LEGGED_SDK::LoopFunc> loop_;
+
+    void callback();
+    void make_loop(); // (re)create loop_ with a fresh LoopFunc
 };
-
-

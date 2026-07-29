@@ -1,86 +1,119 @@
 #include "dummy_driver.h"
-#include <iostream>
 
-
-
-dummy_driver::dummy_driver(std::atomic_bool *st_break_loops, const double &time_step)
-    :st_break_loops_{st_break_loops},dt_{time_step}
+dummy_driver::dummy_driver()
 {
-    loop_control_    = std::make_shared<UNITREE_LEGGED_SDK::LoopFunc>("control_loop",
-                                                                   dt_,
-                                                                   boost::bind(&dummy_driver::_robot_control,this));
-
-    loop_echo_state_ = std::make_shared<UNITREE_LEGGED_SDK::LoopFunc>("echo_state_loop",
-                                                                      dt_, boost::bind(&dummy_driver::_robot_update,this));
+    make_loop();
 }
 
-void dummy_driver::connect()
+dummy_driver::~dummy_driver()
 {
-    loop_echo_state_->start();
-    std::cout<<"Connected!"<<std::endl;
+    std::cout << "\n========== dummy_driver destructor ==========\n";
 }
 
-void dummy_driver::initialize()
+void dummy_driver::make_loop()
 {
-    loop_echo_state_->shutdown();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    loop_control_->start();
+    loop_ = std::make_shared<UNITREE_LEGGED_SDK::LoopFunc>(
+        "test_loop",
+        0.001,
+        boost::bind(&dummy_driver::callback, this));
 }
 
-void dummy_driver::deinitialize()
+void dummy_driver::callback()
 {
-    finish_motion_to_deinitialize_ = true;
-    while(!the_robot_is_ready_to_deinitialize_) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    }
+    callback_started_ = true;
+    std::cout << "Callback entered\n";
 
-    auto start = std::chrono::steady_clock::now();
-    loop_echo_state_->shutdown();
-    auto end = std::chrono::steady_clock::now();
-    std::cout << "shutdown() took "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
-              << " ms" << std::endl;
+    //
+    // Simulate a callback that takes a long time.
+    //
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+
+    //
+    // Access object memory AFTER the sleep.
+    //
+    counter_++;
+    std::cout
+        << "Callback resumed after sleep\n"
+        << "counter = " << counter_ << "\n";
+    callback_finished_ = true;
+    std::cout << "Callback finished\n";
 }
 
-void dummy_driver::disconnect()
+void dummy_driver::run_test_shutdown_while_running()
 {
-    std::cerr<<"disconnected!"<<std::endl;
+    std::cout << "\n===== TEST 1: shutdown() while callback is running =====\n";
+    std::cout << "Starting loop...\n";
+    loop_->start();
+
+    //
+    // Wait until callback has entered.
+    //
+    while (!callback_started_)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    std::cout << "\nMain thread detected callback is running.\n";
+
+    auto t0 = std::chrono::steady_clock::now();
+    std::cout << "Calling shutdown()...\n";
+    loop_->shutdown();
+    auto t1 = std::chrono::steady_clock::now();
+
+    auto elapsed_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+    std::cout
+        << "shutdown() returned after " << elapsed_ms << " ms\n";
+
+    std::cout << "\nDestroying LoopFunc immediately...\n";
+    loop_.reset();
+    std::cout << "LoopFunc destroyed.\n";
+
+    std::cout
+        << "callback_finished = " << callback_finished_ << "\n";
+
+    if (elapsed_ms > 5000)
+        std::cout << "[RESULT] shutdown() BLOCKED for the callback duration -> join-like behavior.\n";
+    else
+        std::cout << "[RESULT] shutdown() returned quickly despite callback still sleeping -> detach-like behavior.\n";
 }
 
-unsigned long long dummy_driver::get_motion_time() const
+void dummy_driver::run_test_shutdown_before_start()
 {
-    return motiontime_;
-}
+    std::cout << "\n===== TEST 2: shutdown() called before callback ever starts =====\n";
 
+    // Fresh state for this test.
+    callback_started_ = false;
+    callback_finished_ = false;
+    counter_ = 0;
+    make_loop();
 
+    std::cout << "Starting loop...\n";
+    loop_->start();
 
-void dummy_driver::_robot_control()
-{
-    motiontime_++;
-    if (!finish_motion_to_deinitialize_)
-    {
+    // Immediately shut down, without waiting for callback_started_.
+    // If the LoopFunc thread hasn't even entered the callback yet
+    // (or the SDK internally waits for at least one period tick),
+    // this exercises a different code path than Test 1.
+    auto t0 = std::chrono::steady_clock::now();
+    std::cout << "Calling shutdown() immediately (no wait)...\n";
+    loop_->shutdown();
+    auto t1 = std::chrono::steady_clock::now();
 
-    }else{
-        // This part of the code is executed when the driver is deinitialized.
-        frozen_time_ = motiontime_;
-        the_robot_is_ready_to_deinitialize_ = true;
-    }
+    auto elapsed_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
-}
+    std::cout
+        << "shutdown() returned after " << elapsed_ms << " ms\n";
+    std::cout
+        << "callback_started_  = " << callback_started_ << "\n"
+        << "callback_finished_ = " << callback_finished_ << "\n";
 
-void dummy_driver::_robot_update()
-{
-    motiontime_++;
-    //if (finish_motion_to_deinitialize_)
-    //    the_robot_is_ready_to_deinitialize_ = true;
+    std::cout << "\nDestroying LoopFunc immediately...\n";
+    loop_.reset();
+    std::cout << "LoopFunc destroyed.\n";
 
-    inside_callback = true;
-
-    std::cout << "Entered callback\n";
-
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-
-    std::cout << "Leaving callback\n";
-
-    inside_callback = false;
+    if (elapsed_ms < 2000)
+        std::cout << "[RESULT] shutdown() returned quickly when callback wasn't mid-run -> not a fixed-duration wait.\n";
+    else
+        std::cout << "[RESULT] shutdown() took a while even though callback hadn't started -> unexpected, investigate.\n";
 }
