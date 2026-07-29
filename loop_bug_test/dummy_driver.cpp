@@ -71,6 +71,16 @@ void dummy_driver::_robot_control()
 void dummy_driver::_robot_update()
 {
     motiontime_++;
-    if (finish_motion_to_deinitialize_)
-        the_robot_is_ready_to_deinitialize_ = true;
+    //if (finish_motion_to_deinitialize_)
+    //    the_robot_is_ready_to_deinitialize_ = true;
+
+    inside_callback = true;
+
+    std::cout << "Entered callback\n";
+
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+
+    std::cout << "Leaving callback\n";
+
+    inside_callback = false;
 }
