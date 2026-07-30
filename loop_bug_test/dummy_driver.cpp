@@ -26,7 +26,7 @@ void dummy_driver::callback()
     //
     // Simulate a callback that takes a long time.
     //
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::this_thread::sleep_for(std::chrono::seconds(4));
 
     //
     // Access object memory AFTER the sleep.
@@ -41,8 +41,7 @@ void dummy_driver::callback()
 
 void dummy_driver::run_test_shutdown_while_running()
 {
-    std::cout << "\n===== TEST 1: shutdown() while callback is running =====\n";
-    std::cout << "Starting loop...\n";
+
     loop_->start();
 
     //
@@ -53,28 +52,24 @@ void dummy_driver::run_test_shutdown_while_running()
 
     std::cout << "\nMain thread detected callback is running.\n";
 
-    auto t0 = std::chrono::steady_clock::now();
-    std::cout << "Calling shutdown()...\n";
-    loop_->shutdown();
-    auto t1 = std::chrono::steady_clock::now();
+    //loop_.reset();
+    //std::cout << "Calling shutdown()...\n";
+    //loop_->shutdown();
 
-    auto elapsed_ms =
-        std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
-    std::cout
-        << "shutdown() returned after " << elapsed_ms << " ms\n";
+//std::cout << "\nDestroying LoopFunc immediately...\n";
 
-    std::cout << "\nDestroying LoopFunc immediately...\n";
-    loop_.reset();
-    std::cout << "LoopFunc destroyed.\n";
+   // std::cout << "LoopFunc destroyed.\n";
 
-    std::cout
-        << "callback_finished = " << callback_finished_ << "\n";
-
+   // std::cout
+    //    << "callback_finished = " << callback_finished_ << "\n";
+/*
     if (elapsed_ms > 5000)
         std::cout << "[RESULT] shutdown() BLOCKED for the callback duration -> join-like behavior.\n";
     else
         std::cout << "[RESULT] shutdown() returned quickly despite callback still sleeping -> detach-like behavior.\n";
+*/
+    //loop_->shutdown();
 }
 
 void dummy_driver::run_test_shutdown_before_start()

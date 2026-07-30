@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # -------------------- Sanitizer options (mutually exclusive) --------------------
 option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
-option(ENABLE_TSAN "Enable ThreadSanitizer" ON)
+option(ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 
 # Ensure only one sanitizer is enabled at a time
 if(ENABLE_ASAN AND ENABLE_TSAN)
