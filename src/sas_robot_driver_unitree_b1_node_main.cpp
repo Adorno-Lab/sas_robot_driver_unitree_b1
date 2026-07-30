@@ -5,6 +5,7 @@
 //#include <sas_robot_driver_unitree_z1/sas_robot_driver_unitree_z1.hpp>
 #include <dqrobotics/utils/DQ_Math.h>
 #include "sas_robot_driver_unitree_b1/sas_robot_driver_unitree_b1.hpp"
+#include <sas_robot_driver/sas_robot_driver_ros.hpp>
 
 /*********************************************
  * SIGNAL HANDLER
@@ -49,7 +50,16 @@ int main(int argc, char** argv)
 
         RCLCPP_INFO_STREAM_ONCE(node->get_logger(), "::Loading parameters from parameter server.");
 
-        robot_driver->control_loop();
+       // robot_driver->control_loop();
+        sas::RobotDriverROSConfiguration robot_driver_ros_configuration;
+        sas::get_ros_parameter(node,"thread_sampling_time_sec",robot_driver_ros_configuration.thread_sampling_time_sec);
+        robot_driver_ros_configuration.robot_driver_provider_prefix = node->get_name();
+
+        sas::RobotDriverROS robot_driver_ros(node,
+                                             robot_driver,
+                                             robot_driver_ros_configuration,
+                                             &kill_this_process);
+        robot_driver_ros.control_loop();
 
     }
     catch (const std::exception& e)

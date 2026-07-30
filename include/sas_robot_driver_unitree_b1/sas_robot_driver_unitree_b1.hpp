@@ -38,6 +38,7 @@
 #include <sas_core/sas_clock.hpp>
 #include <sas_msgs/msg/watchdog_trigger.hpp>
 #include <sas_msgs/msg/bool.hpp>
+#include <sas_tools/LeggedRobotDriver.hpp>
 
 //using namespace Eigen;
 
@@ -60,7 +61,7 @@ struct RobotDriverUnitreeB1Configuration
 
 
 
-class RobotDriverUnitreeB1
+class RobotDriverUnitreeB1: public LeggedRobotDriver
 {
 protected:
     std::atomic_bool* st_break_loops_;
@@ -97,6 +98,12 @@ private:
     void _callback_target_holonomic_velocities(const std_msgs::msg::Float64MultiArray& msg);
     bool new_target_velocities_available_{false};
 
+    Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr subscriber_target_twist_;
+    VectorXd target_twist_ = VectorXd::Zero(6);
+    void _callback_target_twist(const geometry_msgs::msg::TwistStamped& msg);
+    bool new_target_twist_available_{false};
+
+    /*
     Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_shutdown_signal_;
     void _callback_shutdown_signal_(const sas_msgs::msg::Bool& msg);
     bool shutdown_signal_;
@@ -104,8 +111,10 @@ private:
 
     Subscription<sas_msgs::msg::Bool>::SharedPtr subscriber_emergency_stop_device_signal_;
     void _callback_emergency_stop_device_signa_(const sas_msgs::msg::Bool& msg);
+*/
 
     //------Watchdog-----------------------------------------------------------------
+    /*
     Subscription<sas_msgs::msg::WatchdogTrigger>::SharedPtr subscriber_watchdog_trigger_;
     void _callback_watchdog_trigger_state(const sas_msgs::msg::WatchdogTrigger& msg);
     bool watchdog_trigger_status_;
@@ -122,6 +131,7 @@ private:
     double watchdog_period_;
     double watchdog_period_in_seconds_;
     double watchdog_maximum_acceptable_delay_in_seconds_;
+    */
 
 
 
@@ -153,7 +163,28 @@ public:
                          const RobotDriverUnitreeB1Configuration &configuration,
                          std::atomic_bool* break_loops);
 
-    void control_loop();
+    //void control_loop();
+
+    //----------RobotDriver----methods---------------------------------//
+
+    VectorXd get_joint_positions() override;
+    void set_target_joint_positions(const VectorXd& desired_joint_positions_rad) override;
+
+    //void set_target_joint_velocities(const VectorXd& desired_joint_velocities_rad_s) override;
+
+    VectorXd get_joint_velocities() override;
+    VectorXd get_joint_torques() override;
+
+    void connect() override;
+    void disconnect() override;
+
+    void initialize() override;
+    void deinitialize() override;
+
+    // -------------LeggedRobotDriver methods----------------------------------//
+    void set_target_twist(const DQ& twist) override;
+    void set_target_base_orientation(const DQ& r) override;
+    void set_target_base_height(const double& base_height) override;
 
 };
 
