@@ -23,7 +23,7 @@
 #
 # ################################################################*/
 
-#include "unitree_b1_node.hpp"
+#include <sas_robot_driver_unitree_b1/sas_robot_driver_unitree_b1.hpp>
 
 #include "DriverUnitreeB1.hpp"
 #include <iostream>

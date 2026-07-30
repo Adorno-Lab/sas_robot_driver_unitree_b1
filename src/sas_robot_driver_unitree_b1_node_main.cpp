@@ -4,7 +4,7 @@
 #include <sas_core/eigen3_std_conversions.hpp>
 //#include <sas_robot_driver_unitree_z1/sas_robot_driver_unitree_z1.hpp>
 #include <dqrobotics/utils/DQ_Math.h>
-#include "unitree_b1_node.hpp"
+#include "sas_robot_driver_unitree_b1/sas_robot_driver_unitree_b1.hpp"
 
 /*********************************************
  * SIGNAL HANDLER
@@ -51,18 +51,12 @@ int main(int argc, char** argv)
 
         robot_driver->control_loop();
 
-
-
-
-
     }
     catch (const std::exception& e)
     {
         RCLCPP_ERROR_STREAM_ONCE(node->get_logger(), std::string("::Exception::") + e.what());
         std::cerr << std::string("::Exception::") << e.what();
     }
-
-   // sas::display_signal_handler_none_bug_info(node);
     return 0;
 
 
