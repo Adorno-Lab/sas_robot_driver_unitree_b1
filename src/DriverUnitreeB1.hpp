@@ -25,7 +25,13 @@
 
 #pragma once
 #include <dqrobotics/DQ.h>
+#include <atomic>
 #include <memory>
+#include <mutex>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
 
 
 
@@ -81,7 +87,7 @@ private:
         {9, HIGH_LEVEL_MODE::RECOVERY_STAND         },
         };
 
-    HIGH_LEVEL_MODE current_high_level_mode_;
+    HIGH_LEVEL_MODE current_high_level_mode_{HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND};
     void _command_in_high_level_mode(const HIGH_LEVEL_MODE& high_level_mode,
                                      const double& forward_vel,
                                      const double& side_vel,
@@ -128,17 +134,31 @@ private:
     int timeout_in_milliseconds_;
     bool LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_;
     unsigned long long quick_stop_duration_ = 1500; //  smaller = faster to deinitialize, but less controlled stop
+    const unsigned long long lie_down_phase_duration_ = 3000; // Duration of each phase of the lie-down sequence (ms)
+    const unsigned long long deinitialize_timeout_margin_ = 3000; // Extra time (ms) deinitialize() waits for the stop sequence
+
+    // Ranges of the HighCmd velocities (see unitree_legged_sdk/comm.h)
+    const double max_forward_speed_ = 1.2;
+    const double min_forward_speed_ = -0.8;
+    const double max_side_speed_ = 0.25;
+    const double max_yaw_speed_ = 0.75;
 
     MODE mode_{MODE::None};
 
     float dt_{0.002};
-    unsigned long long motiontime_{0};
+    std::atomic<unsigned long long> motiontime_{0};
     uint32_t tick_{0}; //real-time from motion controller
 
     int state_of_charge_{0}; // Battery status (0-100%)
 
-    bool communication_established_{false};
+    std::atomic<bool> communication_established_{false};
     std::vector<unsigned long long> upd_status_{0,0,0,0,0,0,0};
+    // upd_status_ is written by both the UDP send and the UDP receive threads.
+    mutable std::mutex udp_status_mutex_;
+
+    // Protects the robot state and the high-level speed references, which are written by the
+    // SDK loop threads and read by the user thread (and vice versa).
+    mutable std::mutex data_mutex_;
 
 
     //std::atomic<bool> finish_control_loop_{false};
@@ -146,6 +166,11 @@ private:
 
     std::atomic<bool> finish_motion_to_deinitialize_{false};
     std::atomic<bool> the_robot_is_ready_to_deinitialize_{false};
+
+    // Used only by the control loop thread to time the stop sequence of deinitialize().
+    bool deinitialize_sequence_started_{false};
+    unsigned long long deinitialize_start_time_{0};
+    int deinitialize_phase_{-1};
 
     DQ IMU_orientation_{1};
     DQ IMU_gyroscope_{0};
@@ -225,6 +250,7 @@ private:
 
 public:
     DriverUnitreeB1() = delete;
+    ~DriverUnitreeB1();
     DriverUnitreeB1(const DriverUnitreeB1&) = delete;
     DriverUnitreeB1& operator= (const DriverUnitreeB1&) = delete;
     DriverUnitreeB1(std::atomic_bool* st_break_loops,

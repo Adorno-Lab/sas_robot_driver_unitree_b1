@@ -23,6 +23,11 @@
 # ################################################################*/
 
 #include "DriverUnitreeB1.hpp"
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <stdexcept>
+#include <thread>
 #include <unitree_legged_sdk/unitree_legged_sdk.h>
 
 
@@ -37,11 +42,11 @@ class DriverUnitreeB1::Impl
 public:
     std::shared_ptr<UNITREE_LEGGED_SDK::Safety> safe_;
     std::shared_ptr<UNITREE_LEGGED_SDK::UDP>    udp_;
-    UNITREE_LEGGED_SDK::LowCmd low_cmd_;
-    UNITREE_LEGGED_SDK::LowState low_state_;
+    UNITREE_LEGGED_SDK::LowCmd low_cmd_{};
+    UNITREE_LEGGED_SDK::LowState low_state_{};
 
-    UNITREE_LEGGED_SDK::HighCmd high_cmd_;
-    UNITREE_LEGGED_SDK::HighState high_state_;
+    UNITREE_LEGGED_SDK::HighCmd high_cmd_{};
+    UNITREE_LEGGED_SDK::HighState high_state_{};
 
     std::vector<int> FR_index_ = {UNITREE_LEGGED_SDK::FR_0, UNITREE_LEGGED_SDK::FR_1, UNITREE_LEGGED_SDK::FR_2};
     std::vector<int> FL_index_ = {UNITREE_LEGGED_SDK::FL_0, UNITREE_LEGGED_SDK::FL_1, UNITREE_LEGGED_SDK::FL_2};
@@ -163,6 +168,21 @@ DriverUnitreeB1::DriverUnitreeB1(std::atomic_bool *st_break_loops,
 }
 
 /**
+ * @brief DriverUnitreeB1::~DriverUnitreeB1 stops the loops before the members they use are destroyed.
+ *        This matters only if deinitialize() was not called (e.g. an exception was thrown).
+ */
+DriverUnitreeB1::~DriverUnitreeB1()
+{
+    if (current_status_ == STATUS::CONNECTED || current_status_ == STATUS::INITIALIZED)
+    {
+        impl_->loop_control_->shutdown();
+        impl_->loop_echo_state_->shutdown();
+        impl_->loop_udpSend_->shutdown();
+        impl_->loop_udpRecv_->shutdown();
+    }
+}
+
+/**
  * @brief DriverUnitreeB1::get_target_ip returns the Robot IP (TARGET_IP) address. For high-level mode,
  *                  the IP address is usually "192.168.123.220" and "192.168.123.10" for low-level mode.
  * @return The robot IP address.
@@ -199,6 +219,7 @@ int DriverUnitreeB1::get_motiontime() const
  */
 uint32_t DriverUnitreeB1::get_realtime_controller() const
 {
+    std::scoped_lock lock(data_mutex_);
     return tick_;
 }
 
@@ -208,6 +229,7 @@ uint32_t DriverUnitreeB1::get_realtime_controller() const
  */
 int DriverUnitreeB1::get_state_of_charge() const
 {
+    std::scoped_lock lock(data_mutex_);
     return state_of_charge_;
 }
 
@@ -236,6 +258,7 @@ std::string DriverUnitreeB1::get_status_message() const
  */
 std::vector<unsigned long long> DriverUnitreeB1::get_udp_status()
 {
+    std::scoped_lock lock(udp_status_mutex_);
     return upd_status_;
 }
 
@@ -272,6 +295,7 @@ void DriverUnitreeB1::_UDPSend()
  */
 void DriverUnitreeB1::_update_udp_status()
 {
+    std::scoped_lock lock(udp_status_mutex_);
     upd_status_.at(0) = impl_->udp_->udpState.TotalCount >0 ? impl_->udp_->udpState.TotalCount : 0;
     upd_status_.at(1) = impl_->udp_->udpState.SendCount  >0 ? impl_->udp_->udpState.SendCount : 0;
     upd_status_.at(2) = impl_->udp_->udpState.RecvCount  >0 ? impl_->udp_->udpState.RecvCount : 0;
@@ -399,7 +423,9 @@ void DriverUnitreeB1::connect()
             impl_->loop_udpRecv_->shutdown();
             impl_->loop_echo_state_->shutdown();
             _show_status();
-            //throw std::runtime_error("Unestablished connection with the B1 robot!");
+            throw std::runtime_error("DriverUnitreeB1::connect. Unestablished connection with the B1 robot at "
+                                     + ip_ + ":" + std::to_string(port_) + " after "
+                                     + std::to_string(timeout_in_milliseconds_) + " ms.");
         }
 
 
@@ -473,10 +499,30 @@ void DriverUnitreeB1::initialize()
  */
 void DriverUnitreeB1::deinitialize()
 {
+    // Without a successful connect(), no loop is running to finish the motion. This happens, for instance,
+    // when the SAS driver calls deinitialize() after connect() threw, or when deinitialize() is called twice.
+    if (current_status_ != STATUS::CONNECTED && current_status_ != STATUS::INITIALIZED)
+    {
+        std::cerr<<"DriverUnitreeB1::deinitialize. The driver is not connected. Nothing to deinitialize."<<std::endl;
+        return;
+    }
+
     //wait to finish;
     finish_motion_to_deinitialize_ = true;
     std::cerr<<"Waiting to deinitialize..."<<std::endl;
+
+    // The timeout only triggers if the loop that finishes the motion is no longer running.
+    const unsigned long long timeout_in_milliseconds = (LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_ ?
+                                                        4*lie_down_phase_duration_ : quick_stop_duration_)
+                                                       + deinitialize_timeout_margin_;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_in_milliseconds);
     while(!the_robot_is_ready_to_deinitialize_){
+        if (std::chrono::steady_clock::now() > deadline)
+        {
+            std::cerr<<"DriverUnitreeB1::deinitialize. The robot did not finish the motion after "
+                     <<timeout_in_milliseconds<<" ms. Shutting down the loops anyway."<<std::endl;
+            break;
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     };
 
@@ -510,6 +556,7 @@ void DriverUnitreeB1::disconnect()
  */
 std::tuple<VectorXd, VectorXd, VectorXd, VectorXd> DriverUnitreeB1::get_leg_joint_positions() const
 {
+    std::scoped_lock lock(data_mutex_);
     //uFR, uFL, uRR, uRL
     return {qFR_, qFL_, qRR_, qRL_};
 }
@@ -521,6 +568,7 @@ std::tuple<VectorXd, VectorXd, VectorXd, VectorXd> DriverUnitreeB1::get_leg_join
  */
 VectorXd DriverUnitreeB1::get_joint_positions(const BRANCH &branch) const
 {
+    std::scoped_lock lock(data_mutex_);
     switch (branch){
 
     case BRANCH::FR:
@@ -544,6 +592,7 @@ VectorXd DriverUnitreeB1::get_joint_positions(const BRANCH &branch) const
  */
 VectorXd DriverUnitreeB1::get_joint_velocities(const BRANCH &branch) const
 {
+    std::scoped_lock lock(data_mutex_);
     switch (branch){
 
     case BRANCH::FR:
@@ -568,6 +617,7 @@ VectorXd DriverUnitreeB1::get_joint_velocities(const BRANCH &branch) const
  */
 VectorXd DriverUnitreeB1::get_joint_accelerations(const BRANCH &branch) const
 {
+    std::scoped_lock lock(data_mutex_);
     switch (branch){
 
     case BRANCH::FR:
@@ -592,6 +642,7 @@ VectorXd DriverUnitreeB1::get_joint_accelerations(const BRANCH &branch) const
  */
 VectorXd DriverUnitreeB1::get_joint_estimated_torques(const BRANCH &branch) const
 {
+    std::scoped_lock lock(data_mutex_);
     switch (branch){
 
     case BRANCH::FR:
@@ -616,6 +667,7 @@ VectorXd DriverUnitreeB1::get_joint_estimated_torques(const BRANCH &branch) cons
  */
 VectorXd DriverUnitreeB1::get_joint_temperatures(const BRANCH &branch) const
 {
+    std::scoped_lock lock(data_mutex_);
     switch (branch){
 
     case BRANCH::FR:
@@ -638,6 +690,7 @@ VectorXd DriverUnitreeB1::get_joint_temperatures(const BRANCH &branch) const
  */
 DQ DriverUnitreeB1::get_IMU_orientation() const
 {
+    std::scoped_lock lock(data_mutex_);
     return IMU_orientation_;
 }
 
@@ -647,6 +700,7 @@ DQ DriverUnitreeB1::get_IMU_orientation() const
  */
 DQ DriverUnitreeB1::get_IMU_gyroscope() const
 {
+    std::scoped_lock lock(data_mutex_);
     return IMU_gyroscope_;
 }
 
@@ -656,6 +710,7 @@ DQ DriverUnitreeB1::get_IMU_gyroscope() const
  */
 DQ DriverUnitreeB1::get_IMU_accelerometer() const
 {
+    std::scoped_lock lock(data_mutex_);
     return IMU_accelerometer_;
 }
 
@@ -665,6 +720,7 @@ DQ DriverUnitreeB1::get_IMU_accelerometer() const
  */
 DQ DriverUnitreeB1::get_odometry_position() const
 {
+    std::scoped_lock lock(data_mutex_);
     return odometry_position_;
 }
 
@@ -674,6 +730,7 @@ DQ DriverUnitreeB1::get_odometry_position() const
  */
 double DriverUnitreeB1::get_body_height() const
 {
+    std::scoped_lock lock(data_mutex_);
     return body_height_;
 }
 
@@ -685,14 +742,21 @@ double DriverUnitreeB1::get_body_height() const
  */
 DQ DriverUnitreeB1::get_IMU_pose() const
 {
-    const DQ& r = IMU_orientation_;
+    DQ r;
+    VectorXd vec_auxp;
+    double body_height;
+    {
+        std::scoped_lock lock(data_mutex_);
+        r = IMU_orientation_;
+        vec_auxp = odometry_position_.vec4();
+        body_height = body_height_;
+    }
 
     // This value is used to match the height in the CoppeliaSim model
     const double hoffset = 0.025;
-    const VectorXd vec_auxp = odometry_position_.vec4();
     const double x = vec_auxp(1);
     const double y = vec_auxp(2);
-    const double z = body_height_ + hoffset;
+    const double z = body_height + hoffset;
     const DQ p = x*i_ + y*j_ + z*k_;
 
     return (r + E_*0.5*p*r).normalize();
@@ -722,6 +786,7 @@ VectorXd DriverUnitreeB1::get_mobile_platform_configuration_from_IMU_pose() cons
 
 DQ DriverUnitreeB1::get_high_level_angular_velocity() const
 {
+    std::scoped_lock lock(data_mutex_);
     return high_level_angular_velocity_;
 }
 
@@ -731,6 +796,7 @@ DQ DriverUnitreeB1::get_high_level_angular_velocity() const
  */
 DQ DriverUnitreeB1::get_high_level_linear_velocity() const
 {
+    std::scoped_lock lock(data_mutex_);
     return high_level_linear_velocity_;
 }
 
@@ -741,7 +807,14 @@ DQ DriverUnitreeB1::get_high_level_linear_velocity() const
  */
 void DriverUnitreeB1::set_high_level_forward_speed(const double &forward_speed)
 {
-    high_level_forward_speed_ = forward_speed;
+    double side_speed;
+    double yaw_speed;
+    {
+        std::scoped_lock lock(data_mutex_);
+        side_speed = high_level_side_speed_;
+        yaw_speed = high_level_yaw_speed_;
+    }
+    set_high_level_speed(forward_speed, side_speed, yaw_speed);
 }
 
 /**
@@ -750,7 +823,14 @@ void DriverUnitreeB1::set_high_level_forward_speed(const double &forward_speed)
  */
 void DriverUnitreeB1::set_high_level_yaw_speed(const double &yaw_speed)
 {
-    high_level_yaw_speed_ = yaw_speed;
+    double forward_speed;
+    double side_speed;
+    {
+        std::scoped_lock lock(data_mutex_);
+        forward_speed = high_level_forward_speed_;
+        side_speed = high_level_side_speed_;
+    }
+    set_high_level_speed(forward_speed, side_speed, yaw_speed);
 }
 
 /**
@@ -761,22 +841,37 @@ void DriverUnitreeB1::set_high_level_yaw_speed(const double &yaw_speed)
  */
 void DriverUnitreeB1::set_high_level_forward_and_yaw_speed(const double &forward_speed, const double &yaw_speed)
 {
-    set_high_level_forward_speed(forward_speed);
-    set_high_level_yaw_speed(yaw_speed);
+    double side_speed;
+    {
+        std::scoped_lock lock(data_mutex_);
+        side_speed = high_level_side_speed_;
+    }
+    set_high_level_speed(forward_speed, side_speed, yaw_speed);
 }
 
 /**
  * @brief DriverUnitreeB1::set_high_level_speed sets the target forward, side and yaw speeds of the holonomic mobile platform.
- *                         This method is used when the driver is set in high-level.
+ *                         This method is used when the driver is set in high-level. The speeds are saturated to the
+ *                         ranges of the HighCmd struct: forward [-0.8, 1.2] m/s, side [-0.25, 0.25] m/s, and
+ *                         yaw [-0.75, 0.75] rad/s.
  * @param forward_speed The desired forward speed.
  * @param side_speed  The desired side speed.
  * @param yaw_speed The desired yaw speed.
+ * @throws std::invalid_argument if any speed is not finite. In that case, all speeds are set to zero.
  */
 void DriverUnitreeB1::set_high_level_speed(const double &forward_speed, const double &side_speed, const double &yaw_speed)
 {
-    high_level_forward_speed_ = forward_speed;
-    high_level_side_speed_ = side_speed;
-    high_level_yaw_speed_ = yaw_speed;
+    std::scoped_lock lock(data_mutex_);
+    if (!std::isfinite(forward_speed) || !std::isfinite(side_speed) || !std::isfinite(yaw_speed))
+    {
+        high_level_forward_speed_ = 0;
+        high_level_side_speed_ = 0;
+        high_level_yaw_speed_ = 0;
+        throw std::invalid_argument("DriverUnitreeB1::set_high_level_speed. The speeds must be finite. The robot is commanded to stop.");
+    }
+    high_level_forward_speed_ = std::clamp(forward_speed, min_forward_speed_, max_forward_speed_);
+    high_level_side_speed_ = std::clamp(side_speed, -max_side_speed_, max_side_speed_);
+    high_level_yaw_speed_ = std::clamp(yaw_speed, -max_yaw_speed_, max_yaw_speed_);
 }
 
 /**
@@ -785,6 +880,7 @@ void DriverUnitreeB1::set_high_level_speed(const double &forward_speed, const do
  */
 double DriverUnitreeB1::get_high_level_forward_speed_reference() const
 {
+    std::scoped_lock lock(data_mutex_);
     return high_level_forward_speed_;
 }
 
@@ -794,6 +890,7 @@ double DriverUnitreeB1::get_high_level_forward_speed_reference() const
  */
 double DriverUnitreeB1::get_high_level_yaw_speed_reference() const
 {
+    std::scoped_lock lock(data_mutex_);
     return high_level_yaw_speed_;
 }
 
@@ -802,7 +899,12 @@ double DriverUnitreeB1::get_high_level_yaw_speed_reference() const
  */
 void DriverUnitreeB1::show_high_mode() const
 {
-    switch(current_high_level_mode_){
+    HIGH_LEVEL_MODE current_high_level_mode;
+    {
+        std::scoped_lock lock(data_mutex_);
+        current_high_level_mode = current_high_level_mode_;
+    }
+    switch(current_high_level_mode){
 
     case HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND:
         std::cerr<<"IDLE_DEFAULT_STAND"<<std::endl;
@@ -865,19 +967,30 @@ void DriverUnitreeB1::_robot_control()
         { //HIGH LEVEL
             if (!finish_motion_to_deinitialize_)
             {
-                bool all_speeds_are_zero = are_approximately_equal(high_level_forward_speed_, 0.0) &&
-                                           are_approximately_equal(high_level_side_speed_, 0.0) &&
-                                           are_approximately_equal(high_level_yaw_speed_, 0.0);
+                double forward_speed;
+                double side_speed;
+                double yaw_speed;
+                double w;
+                double vx;
+                double vy;
+                {
+                    std::scoped_lock lock(data_mutex_);
+                    forward_speed = high_level_forward_speed_;
+                    side_speed = high_level_side_speed_;
+                    yaw_speed = high_level_yaw_speed_;
+                    w = high_level_angular_velocity_.vec3()(2);
+                    const VectorXd vec_linear_velocity = high_level_linear_velocity_.vec3();
+                    vx = vec_linear_velocity(0);
+                    vy = vec_linear_velocity(1);
+                }
+                bool all_speeds_are_zero = are_approximately_equal(forward_speed, 0.0) &&
+                                           are_approximately_equal(side_speed, 0.0) &&
+                                           are_approximately_equal(yaw_speed, 0.0);
                 bool force_stand_mode = flag_in_custom_flags(CUSTOM_FLAGS::FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO, custom_flags_);
                 if (all_speeds_are_zero)
                 {
                     if (force_stand_mode)
                     {
-                        VectorXd vec_angular_velocity = get_high_level_angular_velocity().vec3();
-                        double w = vec_angular_velocity(2);
-                        VectorXd vec_acceleration = get_high_level_linear_velocity().vec3();
-                        double vx = vec_acceleration(0);
-                        double vy = vec_acceleration(0);
                         // It the robot velocities are higher than a threshold, the FORCE_STAND mode can not stop the robot.
                         // Therefore, I first use TARGET_VELOCITY_WALKING to stop the robot and FORCE_STAND to stop the gait.
                         if (std::abs(w) >= speed_threshold_to_force_stand_mode_ ||
@@ -892,66 +1005,90 @@ void DriverUnitreeB1::_robot_control()
                 }
                 else
                 {
-                    _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, high_level_forward_speed_,
-                                                                                          high_level_side_speed_,
-                                                                                          high_level_yaw_speed_);
+                    _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, forward_speed,
+                                                                                          side_speed,
+                                                                                          yaw_speed);
                 }
 
 
             }else{
                 // This part of the code is executed when the driver is deinitialized.
-                static unsigned long long frozen_time = motiontime_;
+                // The start time belongs to this object (a function-local static would be shared by every
+                // instance and would never be reset).
+                if (!deinitialize_sequence_started_)
+                {
+                    deinitialize_start_time_ = motiontime_;
+                    deinitialize_sequence_started_ = true;
+                }
+                const unsigned long long frozen_time = deinitialize_start_time_;
+                const unsigned long long elapsed_time = motiontime_ - frozen_time;
+
+                // This loop runs every 2 ms with real-time priority, so each phase is reported only once.
+                auto enter_phase = [this](const int& phase, const std::string& message)
+                {
+                    const bool is_new_phase = (phase != deinitialize_phase_);
+                    if (is_new_phase)
+                    {
+                        deinitialize_phase_ = phase;
+                        if (verbosity_)
+                            std::cerr<<message<<std::endl;
+                    }
+                    return is_new_phase;
+                };
 
                 if (!LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_)
                 {
                     // FAST PATH: no lie-down requirement.
                     // Just kill the walking velocity for a short window, then go idle.
-                    const int quick_stop_duration = quick_stop_duration_; // e.g. 500 instead of 3000
-
-                    if (motiontime_ >= frozen_time && motiontime_ < frozen_time + quick_stop_duration)
+                    if (elapsed_time < quick_stop_duration_)
                     {
-                        //std::cerr<<"Stopping (fast deinit)...  "<< frozen_time+quick_stop_duration-motiontime_<<std::endl;
+                        enter_phase(0, "Stopping (fast deinit)...");
                         _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0, 0, 0);
                     }
                     else
                     {
-                        //std::cerr<<"IDLE (fast deinit)"<<std::endl;
+                        enter_phase(1, "IDLE (fast deinit)");
                         _command_in_high_level_mode(HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND, 0, 0, 0);
                         the_robot_is_ready_to_deinitialize_ = true;
                     }
                 }
                 else{
                     // Original full sequence: stop -> stand up -> stand down -> damping -> idle
-                    const int deltatime = 3000;
-                    if (motiontime_>= frozen_time && motiontime_ < frozen_time+deltatime)
+                    const unsigned long long deltatime = lie_down_phase_duration_;
+                    if (elapsed_time < deltatime)
                     {
-                        std::cout<<"Stopping...  "<< frozen_time+deltatime-motiontime_<<std::endl;
+                        enter_phase(0, "Stopping...");
                         _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0, 0, 0);
                     }
-                    else if (motiontime_>= frozen_time+deltatime && motiontime_ < frozen_time+2*deltatime)
+                    else if (elapsed_time < 2*deltatime)
                     {
-                        if (current_high_level_mode_ == HIGH_LEVEL_MODE::DAMPING_MODE)
+                        HIGH_LEVEL_MODE current_high_level_mode;
                         {
-                            std::cout<<"ROBOT IS DAMPING MODE. I WILL IGNORE THE POSITION_STAND_UP... "<<frozen_time + 2*deltatime -motiontime_<<std::endl;
+                            std::scoped_lock lock(data_mutex_);
+                            current_high_level_mode = current_high_level_mode_;
+                        }
+                        if (current_high_level_mode == HIGH_LEVEL_MODE::DAMPING_MODE)
+                        {
+                            enter_phase(1, "ROBOT IS DAMPING MODE. I WILL IGNORE THE POSITION_STAND_UP...");
                         }else
                         {
-                            std::cout<<"POSITION_STAND_UP... "<<frozen_time + 2*deltatime -motiontime_<<std::endl;
+                            enter_phase(1, "POSITION_STAND_UP...");
                             _command_in_high_level_mode(HIGH_LEVEL_MODE::POSITION_STAND_UP, 0, 0, 0);
                         }
                     }
-                    else if (motiontime_>= frozen_time+2*deltatime && motiontime_ < frozen_time+ 3*deltatime)
+                    else if (elapsed_time < 3*deltatime)
                     {
-                        std::cout<<"POSITION_STAND_DOWN... "<<frozen_time + 3*deltatime -motiontime_<<std::endl;
+                        enter_phase(2, "POSITION_STAND_DOWN...");
                         _command_in_high_level_mode(HIGH_LEVEL_MODE::POSITION_STAND_DOWN, 0, 0, 0);
                     }
-                    else if (motiontime_>= frozen_time+ 3*deltatime && motiontime_ < frozen_time+ 4*deltatime)
+                    else if (elapsed_time < 4*deltatime)
                     {
-                        std::cout<<"DAMPING_MODE... "<<frozen_time + 4*deltatime -motiontime_<<std::endl;
+                        enter_phase(3, "DAMPING_MODE...");
                         _command_in_high_level_mode(HIGH_LEVEL_MODE::DAMPING_MODE, 0, 0, 0);
                     }
                     else{
-                        show_high_mode();
-                        std::cout<<"IDLE"<<std::endl;
+                        if (enter_phase(4, "IDLE"))
+                            show_high_mode();
                         _command_in_high_level_mode(HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND, 0, 0, 0);
                         the_robot_is_ready_to_deinitialize_ = true;
                     }
@@ -1006,12 +1143,14 @@ void DriverUnitreeB1::_show_status()
 
 /**
  * @brief DriverUnitreeB1::_update_data_from_robot_state callback method used in the thread related to the robot state.
+ *        It must be called without holding data_mutex_.
  */
 void DriverUnitreeB1::_update_data_from_robot_state()
 {
     if (level_ == LEVEL::LOW)
     {
         impl_->udp_->GetRecv(impl_->low_state_);
+        std::scoped_lock lock(data_mutex_);
         _update_joint_data(impl_->low_state_);
         _update_battery_data(impl_->low_state_);
         _update_IMU_data(impl_->low_state_);
@@ -1020,6 +1159,7 @@ void DriverUnitreeB1::_update_data_from_robot_state()
         tick_ = impl_->low_state_.tick;
     }else{
         impl_->udp_->GetRecv(impl_->high_state_);
+        std::scoped_lock lock(data_mutex_);
         _update_joint_data(impl_->high_state_);
         _update_battery_data(impl_->high_state_);
         _update_IMU_data(impl_->high_state_);
@@ -1027,7 +1167,11 @@ void DriverUnitreeB1::_update_data_from_robot_state()
                              impl_->high_state_.position.at(1)*j_+
                              impl_->high_state_.position.at(2)*k_;
         body_height_ = impl_->high_state_.bodyHeight;
-        current_high_level_mode_ = high_level_mode_map_inv_.at(impl_->high_state_.mode);
+        // An exception here would terminate the process from the SDK thread. Thus, a mode that is
+        // not in the map (e.g., an undocumented mode of the firmware) keeps the last known mode.
+        const auto mode = high_level_mode_map_inv_.find(impl_->high_state_.mode);
+        if (mode != high_level_mode_map_inv_.end())
+            current_high_level_mode_ = mode->second;
 
         high_level_linear_velocity_  = impl_->high_state_.velocity.at(0)*i_+
                                        impl_->high_state_.velocity.at(1)*j_;
@@ -1065,33 +1209,33 @@ void DriverUnitreeB1::_update_joint_data(const T &state)
     for (int i = 0; i<3;i++)
     {
         // Update the joint positions
-        qFR_(i) = state.motorState[impl_->FR_index_.at(i)].q;
-        qFL_(i) = state.motorState[impl_->FL_index_.at(i)].q;
-        qRL_(i) = state.motorState[impl_->RL_index_.at(i)].q;
-        qRR_(i) = state.motorState[impl_->RR_index_.at(i)].q;
+        qFR_(i) = state.motorState.at(impl_->FR_index_.at(i)).q;
+        qFL_(i) = state.motorState.at(impl_->FL_index_.at(i)).q;
+        qRL_(i) = state.motorState.at(impl_->RL_index_.at(i)).q;
+        qRR_(i) = state.motorState.at(impl_->RR_index_.at(i)).q;
 
         // Update the joint velocities
-        qFR_dot_(i) = state.motorState[impl_->FR_index_.at(i)].dq;
-        qFL_dot_(i) = state.motorState[impl_->FL_index_.at(i)].dq;
-        qRL_dot_(i) = state.motorState[impl_->RL_index_.at(i)].dq;
-        qRR_dot_(i) = state.motorState[impl_->RR_index_.at(i)].dq;
+        qFR_dot_(i) = state.motorState.at(impl_->FR_index_.at(i)).dq;
+        qFL_dot_(i) = state.motorState.at(impl_->FL_index_.at(i)).dq;
+        qRL_dot_(i) = state.motorState.at(impl_->RL_index_.at(i)).dq;
+        qRR_dot_(i) = state.motorState.at(impl_->RR_index_.at(i)).dq;
 
         // Update the joint accelerations
-        qFR_ddot_(i) = state.motorState[impl_->FR_index_.at(i)].ddq;
-        qFL_ddot_(i) = state.motorState[impl_->FL_index_.at(i)].ddq;
-        qRL_ddot_(i) = state.motorState[impl_->RL_index_.at(i)].ddq;
-        qRR_ddot_(i) = state.motorState[impl_->RR_index_.at(i)].ddq;
+        qFR_ddot_(i) = state.motorState.at(impl_->FR_index_.at(i)).ddq;
+        qFL_ddot_(i) = state.motorState.at(impl_->FL_index_.at(i)).ddq;
+        qRL_ddot_(i) = state.motorState.at(impl_->RL_index_.at(i)).ddq;
+        qRR_ddot_(i) = state.motorState.at(impl_->RR_index_.at(i)).ddq;
 
         // Update the estimated joint torques output
-        tauFR_(i) = state.motorState[impl_->FR_index_.at(i)].tauEst;
-        tauFL_(i) = state.motorState[impl_->FL_index_.at(i)].tauEst;
-        tauRL_(i) = state.motorState[impl_->RL_index_.at(i)].tauEst;
-        tauRR_(i) = state.motorState[impl_->RR_index_.at(i)].tauEst;
+        tauFR_(i) = state.motorState.at(impl_->FR_index_.at(i)).tauEst;
+        tauFL_(i) = state.motorState.at(impl_->FL_index_.at(i)).tauEst;
+        tauRL_(i) = state.motorState.at(impl_->RL_index_.at(i)).tauEst;
+        tauRR_(i) = state.motorState.at(impl_->RR_index_.at(i)).tauEst;
 
-        temperatureFR_(i) = state.motorState[impl_->FR_index_.at(i)].temperature;
-        temperatureFL_(i) = state.motorState[impl_->FL_index_.at(i)].temperature;
-        temperatureRL_(i) = state.motorState[impl_->RL_index_.at(i)].temperature;
-        temperatureRR_(i) = state.motorState[impl_->RR_index_.at(i)].temperature;
+        temperatureFR_(i) = state.motorState.at(impl_->FR_index_.at(i)).temperature;
+        temperatureFL_(i) = state.motorState.at(impl_->FL_index_.at(i)).temperature;
+        temperatureRL_(i) = state.motorState.at(impl_->RL_index_.at(i)).temperature;
+        temperatureRR_(i) = state.motorState.at(impl_->RR_index_.at(i)).temperature;
     }
 }
 
