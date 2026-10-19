@@ -127,6 +127,8 @@ private:
                                      const double& forward_vel,
                                      const double& side_vel,
                                      const double& yaw_speed);
+    void _command_force_stand(const double& roll, const double& pitch, const double& yaw,
+                              const double& body_height_delta);
 
 
 
@@ -143,6 +145,14 @@ public:
     enum class LEVEL{HIGH, LOW};
     LEVEL level_;
     enum class BRANCH{FR, FL, RR, RL};
+
+    /**
+     * @brief What the control thread commands in MODE::VelocityControl (high level).
+     *   - VELOCITY: the robot walks with the target speeds (see set_high_level_speed()).
+     *   - STAND: the robot stops, and then stands (FORCE_STAND) with the target pose (see
+     *     set_high_level_stand_euler_angles() and set_high_level_stand_body_height()).
+     */
+    enum class TARGET_BEHAVIOR{VELOCITY, STAND};
 
 
 public:
@@ -161,6 +171,12 @@ private:
     double high_level_side_speed_{0};
     double high_level_yaw_speed_{0};
 
+    TARGET_BEHAVIOR target_behavior_{TARGET_BEHAVIOR::VELOCITY};
+    double stand_roll_{0};
+    double stand_pitch_{0};
+    double stand_yaw_{0};
+    double stand_body_height_delta_{0};
+
     std::string ip_ {"0.0.0"};
     int port_{0};
 
@@ -177,6 +193,16 @@ private:
     const double min_forward_speed_ = -0.8;
     const double max_side_speed_ = 0.25;
     const double max_yaw_speed_ = 0.75;
+
+    // Ranges of the HighCmd FORCE_STAND pose (see unitree_legged_sdk/comm.h)
+    const double max_stand_roll_ = 0.3;
+    const double max_stand_pitch_ = 0.3;
+    const double max_stand_yaw_ = 0.6;
+    const double max_stand_body_height_delta_ = 0.16;
+
+    // Time (ms) in the neutral FORCE_STAND pose before walking again after TARGET_BEHAVIOR::STAND, as in
+    // unitree_legged_sdk/example/example_walk.cpp.
+    const unsigned long long stand_exit_duration_ = 1000;
 
     MODE mode_{MODE::None};
 
@@ -210,6 +236,16 @@ private:
     bool deinitialize_sequence_started_{false};
     unsigned long long deinitialize_start_time_{0};
     int deinitialize_phase_{-1};
+
+    // Used only by the control loop thread. standing_ is true from the moment the robot is stopped and
+    // commanded in FORCE_STAND (TARGET_BEHAVIOR::STAND) until it has spent stand_exit_duration_ in the neutral
+    // pose after the target behavior changed. Thus, the robot does not switch between walking and standing
+    // because of noise in the measured velocities, and it never walks with a tilted body.
+    std::atomic<bool> standing_{false};
+    bool leaving_stand_{false};
+    unsigned long long leave_stand_start_time_{0};
+    bool _command_stand_or_leave_it(const TARGET_BEHAVIOR& target_behavior,
+                                    const double& w, const double& vx, const double& vy);
 
     DQ IMU_orientation_{0}; // DQ(0) until the first message of the robot arrives
     DQ IMU_gyroscope_{0};
@@ -367,6 +403,13 @@ public:
                               const double& yaw_speed = 0);
 
     double get_high_level_forward_speed_reference() const;
+
+    void set_target_behavior(const TARGET_BEHAVIOR& target_behavior);
+    TARGET_BEHAVIOR get_target_behavior() const;
+    void set_high_level_stand_euler_angles(const double& roll, const double& pitch, const double& yaw);
+    void set_high_level_stand_body_height(const double& body_height_delta);
+    std::tuple<double, double, double, double> get_high_level_stand_pose_reference() const;
+    bool is_standing() const;
     double get_high_level_yaw_speed_reference() const;
 
     void show_high_mode() const;

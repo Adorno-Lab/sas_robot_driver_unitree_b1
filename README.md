@@ -33,12 +33,22 @@ The B1 is a floating base with four legs. Each leg is a standard SAS robot drive
 | Mode | B1 behaviour |
 |---|---|
 | `IDLE` (initial mode) | Zero velocity. |
+| `STANDING` | The robot stops and stands (FORCE_STAND). The base orientation and the base height are accepted. |
 | `WALKING` | The twist is accepted. |
 
-- `STANDING` is not supported yet: the base height and the base orientation cannot be commanded.
-- Every mode change first stops the robot (zero velocity).
-- Only the twist is supported: `vx`, `vy`, and `wz` (yaw rate), in the body frame. They are saturated to the ranges
-  of the robot: `vx` [-0.8, 1.2] m/s, `vy` [-0.25, 0.25] m/s, `wz` [-0.75, 0.75] rad/s.
+- Every mode change first stops the robot (zero velocity), and resets the base orientation and height.
+- Entering `STANDING`: the robot walks with zero velocity until its velocity is below 0.1, and then stands. From then
+  on, it stays in FORCE_STAND whatever its measured velocity.
+- Leaving `STANDING` (to another mode, or when the driver stops): the robot first stands in the neutral pose for 1 s,
+  as in `example_walk.cpp` of unitree_legged_sdk, so that it never walks with a tilted body.
+- The twist: `vx`, `vy`, and `wz` (yaw rate), in the body frame. They are saturated to the ranges of the robot:
+  `vx` [-0.8, 1.2] m/s, `vy` [-0.25, 0.25] m/s, `wz` [-0.75, 0.75] rad/s.
+- The base orientation: ZYX roll, pitch, and yaw relative to the pose at the start of `STANDING` (the frame F_f of
+  sas_tools), taken by the B1 as the angles of its standing pose. The limits (published in `get/info`) are roll
+  [-0.3, 0.3], pitch [-0.3, 0.3], and yaw [-0.6, 0.6] rad.
+- The base height, in meters above the ground: the B1 takes its difference with the nominal height, 0.58 m, saturated
+  to [-0.16, 0.16] m. Thus, the height is within [0.42, 0.74] m. It is only accepted in `STANDING`
+  (`supports_base_height_while_walking` is false in `get/info`).
 - With zero velocity, the robot walks in place. With `FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO`, it
   stands instead, once its velocity is below 0.1 (see
   [#4](https://github.com/Adorno-Lab/sas_robot_driver_unitree_b1/issues/4)).
@@ -161,7 +171,8 @@ cmake --build qt/legged_client_window/build
 ## Testing without ROS
 
 `qt/configuration_window` is a Qt application that runs `DriverUnitreeB1` (the driver without ROS) with sliders for
-the twist, and displays the state of the robot. Open `qt/configuration_window/CMakeLists.txt` in Qt Creator, or:
+the twist and for the standing pose, and displays the state of the robot. The dial selects walking (0) or standing (1).
+Turning it resets the sliders, as the driver resets its targets. Open `qt/configuration_window/CMakeLists.txt` in Qt Creator, or:
 
 ```shell
 cmake -S qt/configuration_window -B qt/configuration_window/build -DCMAKE_PREFIX_PATH=~/Qt/6.8.1/gcc_64

@@ -47,6 +47,10 @@ struct ClientWindowConfiguration
     std::string legged_robot_prefix;                    ///< The legged robot driver, e.g. "sas_b1/b1_1".
     std::vector<std::string> own_driver_limb_prefixes;  ///< Limbs with their own driver, e.g. {"sas_z1/z1_1"}.
     bool monitor_only{false};                           ///< Only read the robot: the command topics are not created.
+    // Range of the base height slider, in meters. get/info does not publish it. The defaults are the ones of the B1.
+    double base_height_min{0.42};
+    double base_height_max{0.74};
+    double base_height_nominal{0.58};                   ///< Position of the slider in the neutral pose.
 };
 
 /**
@@ -135,6 +139,18 @@ private:
     QLabel* label_wz_{nullptr};
     bool accepted_twist_{false};
 
+    QGroupBox* group_base_pose_{nullptr};
+    QSlider* slider_roll_{nullptr};
+    QSlider* slider_pitch_{nullptr};
+    QSlider* slider_yaw_{nullptr};
+    QSlider* slider_height_{nullptr};
+    QLabel* label_roll_{nullptr};
+    QLabel* label_pitch_{nullptr};
+    QLabel* label_yaw_{nullptr};
+    QLabel* label_height_{nullptr};
+    bool accepted_base_pose_{false};
+    bool base_orientation_limits_configured_{false};
+
     QLabel* label_quaternion_{nullptr};
     QLabel* label_rpy_{nullptr};
     QLabel* label_gyroscope_{nullptr};
@@ -148,6 +164,7 @@ private:
     QGroupBox* _build_mode_group();
     QGroupBox* _build_twist_group();
     QGroupBox* _build_imu_group();
+    QGroupBox* _build_base_pose_group();
     QSlider* _add_twist_row(QGridLayout* layout, const int& row, const QString& name, const double& max_value,
                             QLabel*& value_label);
 
@@ -171,6 +188,9 @@ private:
     void _on_twist_slider_changed();
     void _send_target_twist();
     void _zero_twist();
+    void _on_base_orientation_slider_changed();
+    void _on_base_height_slider_changed();
+    void _neutral_base_pose();
     void _on_emergency_stop_clicked();
 
     void _show_error(const std::string& what);

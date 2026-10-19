@@ -47,6 +47,8 @@ void sig_int_handler(int)
  *     e.g. "['sas_z1/z1_1']" for the Z1 arm of a B1.
  *   - monitor_only (bool, default false): only read the robot. The command topics are not created, so
  *     the window can run next to the controller of the robot. The emergency stop still works.
+ *   - base_height_min, base_height_max, base_height_nominal (double, defaults 0.42, 0.74, 0.58 m, the ones of
+ *     the B1): range and neutral position of the base height slider, which get/info does not publish.
  */
 int main(int argc, char *argv[])
 {
@@ -62,6 +64,9 @@ int main(int argc, char *argv[])
     configuration.own_driver_limb_prefixes = node->declare_parameter<std::vector<std::string>>("own_driver_limb_prefixes",
                                                                                                std::vector<std::string>{});
     configuration.monitor_only = node->declare_parameter<bool>("monitor_only", false);
+    configuration.base_height_min = node->declare_parameter<double>("base_height_min", 0.42);
+    configuration.base_height_max = node->declare_parameter<double>("base_height_max", 0.74);
+    configuration.base_height_nominal = node->declare_parameter<double>("base_height_nominal", 0.58);
 
     std::string own_driver_limb_prefixes;
     for (const auto& prefix : configuration.own_driver_limb_prefixes)

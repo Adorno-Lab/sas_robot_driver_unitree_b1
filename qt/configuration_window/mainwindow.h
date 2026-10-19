@@ -112,6 +112,7 @@ private:
 
 
     Eigen::Vector3d _compute_euler_angles_from_unit_quaternion(const DQ& r) const;
+    DriverUnitreeB1::TARGET_BEHAVIOR _get_target_behavior_from_dial() const;
 
 
 

@@ -63,12 +63,15 @@ struct RobotDriverUnitreeB1Configuration
  *   - front_right_leg, front_left_leg, rear_right_leg, rear_left_leg: never commandable (moved by the
  *     locomotion controller).
  *
- * Modes:
+ * Modes (all of them but IDLE in MODE::VELOCITY_CONTROL only):
  *   - IDLE: zero velocity.
- *   - WALKING: the twist is accepted (MODE::VELOCITY_CONTROL only).
+ *   - STANDING: the robot stops, and then stands (FORCE_STAND). The base orientation and the base height are
+ *     accepted.
+ *   - WALKING: the twist is accepted. The base height is not (the B1 only changes it while standing).
  *
- * Every mode change first stops the robot (zero velocity). Only the twist is supported: neither the base
- * height nor the base orientation can be commanded, so STANDING is not supported.
+ * Every mode change first stops the robot (zero velocity), and resets the base orientation and height. When
+ * the robot leaves STANDING, it first stands in the neutral pose for 1 s, so that it never walks with a tilted
+ * body.
  */
 class RobotDriverUnitreeB1: public LeggedRobotDriver
 {
@@ -122,14 +125,19 @@ public:
     void set_target_twist(const DQ& twist) override;
 
     /**
-     * @brief set_target_base_orientation Not supported by the B1 driver.
-     * @throws std::logic_error always (LeggedRobotDriverROS never calls it, since is_supported() is false).
+     * @brief set_target_base_orientation Sets the orientation of the body while the robot stands (STANDING).
+     * @param r The unit quaternion r = r_z(yaw)*r_y(pitch)*r_x(roll), relative to the frame F_f. The B1 takes
+     *        the roll, pitch, and yaw angles of its standing pose, which are zero for the neutral (level) pose.
+     *        They are saturated to get_base_orientation_limits().
+     * @throws std::invalid_argument if @p r is not a unit quaternion. The pose is reset to neutral.
      */
     void set_target_base_orientation(const DQ& r) override;
 
     /**
-     * @brief set_target_base_height Not supported by the B1 driver.
-     * @throws std::logic_error always (LeggedRobotDriverROS never calls it, since is_supported() is false).
+     * @brief set_target_base_height Sets the height of the body while the robot stands (STANDING).
+     * @param base_height The height with respect to the ground, in meters. The B1 takes the difference with its
+     *        nominal height, 0.58 m, saturated to [-0.16, 0.16] m: thus, the height is within [0.42, 0.74] m.
+     * @throws std::invalid_argument if @p base_height is not finite. The height is reset to the nominal one.
      */
     void set_target_base_height(const double& base_height) override;
 
@@ -153,16 +161,23 @@ public:
     DQ get_linear_acceleration() override;
 
     /**
-     * @brief get_supported_high_level_modes Returns IDLE and WALKING in MODE::VELOCITY_CONTROL, and IDLE
-     *        in MODE::NONE.
+     * @brief get_supported_high_level_modes Returns IDLE, STANDING, and WALKING in MODE::VELOCITY_CONTROL, and
+     *        IDLE in MODE::NONE.
      */
     std::vector<HIGH_LEVEL_MODE> get_supported_high_level_modes() const override;
 
     /**
-     * @brief is_supported Returns true only for LEGGED_FUNCTIONALITY::TWIST in MODE::VELOCITY_CONTROL, and
-     *        false for every functionality in MODE::NONE.
+     * @brief is_supported In MODE::VELOCITY_CONTROL, returns true for LEGGED_FUNCTIONALITY::TWIST, BASE_HEIGHT,
+     *        and BASE_ORIENTATION, and false for BASE_HEIGHT_WHILE_WALKING. Returns false for every
+     *        functionality in MODE::NONE.
      */
     bool is_supported(const LEGGED_FUNCTIONALITY& functionality) const override;
+
+    /**
+     * @brief get_base_orientation_limits Returns the ranges of the standing pose of the B1: roll [-0.3, 0.3],
+     *        pitch [-0.3, 0.3], and yaw [-0.6, 0.6] rad (unitree_legged_sdk/comm.h).
+     */
+    std::tuple<Eigen::Vector3d, Eigen::Vector3d> get_base_orientation_limits() const override;
 
     /**
      * @brief get_limbs Returns front_right_leg, front_left_leg, rear_right_leg, and rear_left_leg, in this order.

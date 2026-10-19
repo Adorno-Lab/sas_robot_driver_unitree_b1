@@ -62,6 +62,7 @@ Other robots and options:
 | `legged_robot_prefix` | `sas_b1/b1_1` | Topic prefix of the legged driver (namespace and node name of its launch file) |
 | `own_driver_limb_prefixes` | `[]` | Limbs with their own driver, e.g. `['sas_z1/z1_1']`. Their widgets appear once the legged driver and their joint states are received |
 | `monitor_only` | `false` | Only read the robot: the command topics are not created |
+| `base_height_min`, `base_height_max`, `base_height_nominal` | `0.42`, `0.74`, `0.58` | Range and neutral position (m) of the base height slider, which `get/info` does not publish. The defaults are the ones of the B1 |
 
 ## Usage
 
@@ -75,7 +76,14 @@ Other robots and options:
    the driver stops the robot after its twist timeout (0.2 s by default).
 4. Press `ZERO` to stop, and select `IDLE` when done.
 
-- The sliders go back to zero on every mode request, and whenever the robot does not accept the twist.
+To change the pose of the body, select `STANDING`: the robot stops and stands, and the base pose sliders (roll,
+pitch, yaw, height) are enabled. The pose is sent when a slider moves; `NEUTRAL` goes back to the neutral pose.
+When you select another mode, the robot first returns to the neutral pose (1 s on the B1).
+
+- The twist and base pose sliders go back to zero (neutral) on every mode request, and whenever the robot does not
+  accept them.
+- The ranges of the orientation sliders are the limits of `get/info`, minus one step (0.001 rad): at the limit itself,
+  the conversion to a quaternion and back can exceed it slightly, and the driver would warn that it clamped it.
 - The ranges of the twist sliders are conservative, for testing: `vx` ±0.2 m/s, `vy` ±0.1 m/s, `wz` ±0.2 rad/s.
   They are set in `mainwindow.h` (`max_vx_`, `max_vy_`, `max_wz_`).
 - The legs of the B1 never accept targets: their sliders are disabled and follow the measured positions.

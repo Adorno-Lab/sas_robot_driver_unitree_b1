@@ -78,8 +78,8 @@ MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
 
     ui->pushButton_zero_commands_->setStyleSheet(pause_yellow_color_);
 
-    // The driver has no target mode: it walks with the commanded speeds (see DriverUnitreeB1::_robot_control()).
-    ui->pushButton_target_mode_->setText("N/A");
+    // Display only: the target behavior of the driver (dial: 0 walking, 1 standing).
+    ui->pushButton_target_mode_->setText("VELOCITY");
     ui->pushButton_target_mode_->setEnabled(false);
 
     connect(ui->pushButton_zero_commands_, &QPushButton::clicked,
@@ -206,16 +206,15 @@ void MainWindow::update_dial_select_robot()
 
 void MainWindow::update_dial_change_operation_high_level_mode()
 {
-    /*
-    if (unitree_b1_driver_)
-    {
-        int dial = ui->dial_change_operation_high_level_mode_->sliderPosition();
-        if (dial == 0) //walking
-            unitree_b1_driver_->request_change_in_high_level_control(DriverUnitreeB1::HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING);
-        if (dial == 1)
-            unitree_b1_driver_->request_change_in_high_level_control(DriverUnitreeB1::HIGH_LEVEL_MODE::FORCED_STAND);
-    }
-  */
+    // The driver resets its targets when the target behavior changes; the sliders do the same, so that an old
+    // speed or pose is never applied after the change. The behavior is sent in timerEvent().
+    _set_zero_commands();
+}
+
+DriverUnitreeB1::TARGET_BEHAVIOR MainWindow::_get_target_behavior_from_dial() const
+{
+    return ui->dial_change_operation_high_level_mode_->value() == 1 ? DriverUnitreeB1::TARGET_BEHAVIOR::STAND
+                                                                      : DriverUnitreeB1::TARGET_BEHAVIOR::VELOCITY;
 }
 
 void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
@@ -254,8 +253,15 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
         std::string status_msg = unitree_b1_driver_->get_status_message();
         ui->label_status_->setText(QString(status_msg.c_str()));
 
+        // The speeds only take effect in TARGET_BEHAVIOR::VELOCITY, and the pose in TARGET_BEHAVIOR::STAND.
+        const DriverUnitreeB1::TARGET_BEHAVIOR target_behavior = _get_target_behavior_from_dial();
+        unitree_b1_driver_->set_target_behavior(target_behavior);
         unitree_b1_driver_->set_high_level_speed(target_forward_speed_, target_side_speed_, target_yaw_speed_);
-        //unitree_b1_driver_->set_forced_stand_commands(target_roll_, target_pitch_, target_yaw_, target_height_);
+        unitree_b1_driver_->set_high_level_stand_euler_angles(target_roll_, target_pitch_, target_yaw_);
+        unitree_b1_driver_->set_high_level_stand_body_height(target_height_);
+        ui->pushButton_target_mode_->setText(target_behavior == DriverUnitreeB1::TARGET_BEHAVIOR::STAND ?
+                                                 (unitree_b1_driver_->is_standing() ? "STAND" : "STAND (stopping...)") :
+                                                 (unitree_b1_driver_->is_standing() ? "VELOCITY (leaving stand...)" : "VELOCITY"));
 
         VectorXd w = unitree_b1_driver_->get_high_level_angular_velocity().vec3();
         VectorXd v   = unitree_b1_driver_->get_high_level_linear_velocity().vec3();

@@ -119,6 +119,7 @@ void MainWindow::_build_ui()
     // Twist and IMU
     auto layout_middle = new QHBoxLayout();
     layout_middle->addWidget(_build_twist_group(), 1);
+    layout_middle->addWidget(_build_base_pose_group(), 1);
     layout_middle->addWidget(_build_imu_group(), 1);
     layout_main->addLayout(layout_middle);
 
@@ -135,7 +136,7 @@ void MainWindow::_build_ui()
     layout_main->addWidget(group_limbs, 1);
 
     setCentralWidget(central);
-    resize(1350, 900);
+    resize(1500, 900);
     statusBar()->showMessage("Waiting for " + QString(configuration_.legged_robot_prefix.c_str()) + "/get/info and get/status...");
 }
 
@@ -224,6 +225,46 @@ QGroupBox *MainWindow::_build_twist_group()
     // Enabled while the robot accepts the twist.
     group_twist_->setEnabled(false);
     return group_twist_;
+}
+
+QGroupBox *MainWindow::_build_base_pose_group()
+{
+    group_base_pose_ = new QGroupBox("Target base pose (STANDING)", this);
+    auto layout = new QGridLayout(group_base_pose_);
+    const auto add_row = [this, layout](const int& row, const QString& name, QLabel*& value_label) {
+        auto slider = new QSlider(Qt::Horizontal, group_base_pose_);
+        slider->setObjectName("slider_" + name.section(' ', 0, 0));  // e.g. slider_roll
+        slider->setRange(0, 0);  // The orientation limits arrive with get/info.
+        value_label = new QLabel(_format(0.0), group_base_pose_);
+        value_label->setMinimumWidth(60);
+        layout->addWidget(new QLabel(name, group_base_pose_), row, 0);
+        layout->addWidget(slider, row, 1);
+        layout->addWidget(value_label, row, 2);
+        return slider;
+    };
+    slider_roll_ = add_row(0, "roll (rad)", label_roll_);
+    slider_pitch_ = add_row(1, "pitch (rad)", label_pitch_);
+    slider_yaw_ = add_row(2, "yaw (rad)", label_yaw_);
+    slider_height_ = add_row(3, "height (m)", label_height_);
+    slider_height_->setRange(static_cast<int>(std::ceil(configuration_.base_height_min*slider_factor_)),
+                             static_cast<int>(std::floor(configuration_.base_height_max*slider_factor_)));
+    for (auto* slider : {slider_roll_, slider_pitch_, slider_yaw_})
+        connect(slider, &QSlider::valueChanged, this, [this](int) { _on_base_orientation_slider_changed(); });
+    connect(slider_height_, &QSlider::valueChanged, this, [this](int) { _on_base_height_slider_changed(); });
+
+    auto button_neutral = new QPushButton("NEUTRAL", group_base_pose_);
+    button_neutral->setObjectName("button_neutral_base_pose");
+    button_neutral->setStyleSheet("QPushButton { background-color: #fcca03; }");
+    connect(button_neutral, &QPushButton::clicked, this, [this]() { _neutral_base_pose(); });
+    layout->addWidget(button_neutral, 4, 0, 1, 3);
+    auto note = new QLabel("Angles relative to the pose at the start of STANDING (limits from get/info). The sliders "
+                           "go back to the neutral pose when the robot does not accept them.", group_base_pose_);
+    note->setWordWrap(true);
+    layout->addWidget(note, 5, 0, 1, 3);
+    layout->setColumnStretch(1, 1);
+    group_base_pose_->setEnabled(false);
+    _neutral_base_pose();
+    return group_base_pose_;
 }
 
 QGroupBox *MainWindow::_build_imu_group()
@@ -418,6 +459,35 @@ void MainWindow::_update_mode()
         _zero_twist();
     accepted_twist_ = accepts_twist;
     group_twist_->setEnabled(!configuration_.monitor_only && accepts_twist);
+
+    // The base pose: the orientation limits arrive with get/info.
+    if (!base_orientation_limits_configured_)
+    {
+        const auto [min_rpy, max_rpy] = legged_client_->get_base_orientation_limits();
+        const std::vector<QSlider*> sliders{slider_roll_, slider_pitch_, slider_yaw_};
+        for (std::size_t i = 0; i < sliders.size(); i++)
+        {
+            const long j = static_cast<long>(i);
+            // One step (0.001 rad) inside the limits: at the limit itself, the conversion to a quaternion and back
+            // can exceed it slightly, and the driver would warn that it clamped the target.
+            const int lower = static_cast<int>(min_rpy(j)*slider_factor_);
+            const int upper = static_cast<int>(max_rpy(j)*slider_factor_);
+            sliders.at(i)->setRange(lower < 0 ? lower + 1 : lower, upper > 0 ? upper - 1 : upper);
+            sliders.at(i)->setToolTip("[" + _format(min_rpy(j)) + ", " + _format(max_rpy(j)) + "] rad");
+        }
+        base_orientation_limits_configured_ = true;
+        _neutral_base_pose();
+    }
+    const bool accepts_base_orientation = legged_client_->accepts_base_orientation();
+    const bool accepts_base_height = legged_client_->accepts_base_height();
+    const bool accepts_base_pose = accepts_base_orientation || accepts_base_height;
+    if (accepted_base_pose_ && !accepts_base_pose)
+        _neutral_base_pose();
+    accepted_base_pose_ = accepts_base_pose;
+    group_base_pose_->setEnabled(!configuration_.monitor_only && accepts_base_pose);
+    for (auto* slider : {slider_roll_, slider_pitch_, slider_yaw_})
+        slider->setEnabled(accepts_base_orientation);
+    slider_height_->setEnabled(accepts_base_height);
 }
 
 void MainWindow::_update_imu()
@@ -604,6 +674,7 @@ void MainWindow::_on_mode_clicked(QAbstractButton *button)
     try
     {
         _zero_twist();
+        _neutral_base_pose();
         if (configuration_.monitor_only || !legged_client_->is_enabled())
             return;
 
@@ -654,6 +725,52 @@ void MainWindow::_zero_twist()
     slider_vx_->setValue(0);
     slider_vy_->setValue(0);
     slider_wz_->setValue(0);
+}
+
+void MainWindow::_on_base_orientation_slider_changed()
+{
+    const double roll = slider_roll_->value()/slider_factor_;
+    const double pitch = slider_pitch_->value()/slider_factor_;
+    const double yaw = slider_yaw_->value()/slider_factor_;
+    label_roll_->setText(_format(roll));
+    label_pitch_->setText(_format(pitch));
+    label_yaw_->setText(_format(yaw));
+    try
+    {
+        // The driver keeps the last target, so it is only sent when it changes.
+        if (!configuration_.monitor_only && legged_client_->is_enabled() && legged_client_->accepts_base_orientation())
+            legged_client_->send_target_base_orientation_rpy(roll, pitch, yaw);
+    }
+    catch (const std::exception& e)
+    {
+        _show_error(e.what());
+    }
+}
+
+void MainWindow::_on_base_height_slider_changed()
+{
+    const double height = slider_height_->value()/slider_factor_;
+    label_height_->setText(_format(height));
+    try
+    {
+        if (!configuration_.monitor_only && legged_client_->is_enabled() && legged_client_->accepts_base_height())
+            legged_client_->send_target_base_height(height);
+    }
+    catch (const std::exception& e)
+    {
+        _show_error(e.what());
+    }
+}
+
+void MainWindow::_neutral_base_pose()
+{
+    // Each setValue() sends the target if the robot accepts it (see the slider callbacks).
+    slider_roll_->setValue(0);
+    slider_pitch_->setValue(0);
+    slider_yaw_->setValue(0);
+    slider_height_->setValue(static_cast<int>(std::lround(configuration_.base_height_nominal*slider_factor_)));
+    _on_base_orientation_slider_changed();
+    _on_base_height_slider_changed();
 }
 
 void MainWindow::_on_emergency_stop_clicked()

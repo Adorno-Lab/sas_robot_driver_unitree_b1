@@ -479,7 +479,7 @@ void DriverUnitreeB1::deinitialize()
     // The timeout only triggers if the thread that finishes the motion is no longer running.
     const unsigned long long timeout_in_milliseconds = (LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_ ?
                                                         4*lie_down_phase_duration_ : quick_stop_duration_)
-                                                       + deinitialize_timeout_margin_;
+                                                       + stand_exit_duration_ + deinitialize_timeout_margin_;
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_in_milliseconds);
     while(!the_robot_is_ready_to_deinitialize_){
         if (std::chrono::steady_clock::now() > deadline)
@@ -879,6 +879,102 @@ double DriverUnitreeB1::get_high_level_yaw_speed_reference() const
 }
 
 /**
+ * @brief DriverUnitreeB1::set_target_behavior sets what the robot does in MODE::VelocityControl: walk with the
+ *        target speeds (TARGET_BEHAVIOR::VELOCITY), or stop and stand with the target pose (TARGET_BEHAVIOR::STAND).
+ *        A change of the target behavior resets the target speeds and the target pose to zero (neutral pose), so
+ *        that an old target is never applied after the change. See _command_stand_or_leave_it() for the transitions.
+ * @param target_behavior The target behavior.
+ */
+void DriverUnitreeB1::set_target_behavior(const TARGET_BEHAVIOR &target_behavior)
+{
+    std::scoped_lock lock(data_mutex_);
+    if (target_behavior == target_behavior_)
+        return;
+    target_behavior_ = target_behavior;
+    high_level_forward_speed_ = 0;
+    high_level_side_speed_ = 0;
+    high_level_yaw_speed_ = 0;
+    stand_roll_ = 0;
+    stand_pitch_ = 0;
+    stand_yaw_ = 0;
+    stand_body_height_delta_ = 0;
+}
+
+/**
+ * @brief DriverUnitreeB1::get_target_behavior returns the target behavior.
+ * @return The target behavior.
+ */
+DriverUnitreeB1::TARGET_BEHAVIOR DriverUnitreeB1::get_target_behavior() const
+{
+    std::scoped_lock lock(data_mutex_);
+    return target_behavior_;
+}
+
+/**
+ * @brief DriverUnitreeB1::set_high_level_stand_euler_angles sets the target roll, pitch, and yaw angles of the
+ *        body while the robot stands (TARGET_BEHAVIOR::STAND). They are saturated to the ranges of the HighCmd
+ *        struct: roll [-0.3, 0.3], pitch [-0.3, 0.3], and yaw [-0.6, 0.6] rad.
+ * @param roll The roll angle (rad).
+ * @param pitch The pitch angle (rad).
+ * @param yaw The yaw angle (rad).
+ * @throws std::invalid_argument if any angle is not finite. In that case, all angles are set to zero.
+ */
+void DriverUnitreeB1::set_high_level_stand_euler_angles(const double &roll, const double &pitch, const double &yaw)
+{
+    std::scoped_lock lock(data_mutex_);
+    if (!std::isfinite(roll) || !std::isfinite(pitch) || !std::isfinite(yaw))
+    {
+        stand_roll_ = 0;
+        stand_pitch_ = 0;
+        stand_yaw_ = 0;
+        throw std::invalid_argument("DriverUnitreeB1::set_high_level_stand_euler_angles. The angles must be finite. "
+                                    "The angles are set to zero.");
+    }
+    stand_roll_ = std::clamp(roll, -max_stand_roll_, max_stand_roll_);
+    stand_pitch_ = std::clamp(pitch, -max_stand_pitch_, max_stand_pitch_);
+    stand_yaw_ = std::clamp(yaw, -max_stand_yaw_, max_stand_yaw_);
+}
+
+/**
+ * @brief DriverUnitreeB1::set_high_level_stand_body_height sets the target body height while the robot stands
+ *        (TARGET_BEHAVIOR::STAND), with respect to the default height of the robot. It is saturated to the range
+ *        of the HighCmd struct, [-0.16, 0.16] m.
+ * @param body_height_delta The body height with respect to the default height (m).
+ * @throws std::invalid_argument if the height is not finite. In that case, it is set to zero.
+ */
+void DriverUnitreeB1::set_high_level_stand_body_height(const double &body_height_delta)
+{
+    std::scoped_lock lock(data_mutex_);
+    if (!std::isfinite(body_height_delta))
+    {
+        stand_body_height_delta_ = 0;
+        throw std::invalid_argument("DriverUnitreeB1::set_high_level_stand_body_height. The height must be finite. "
+                                    "The height is set to zero.");
+    }
+    stand_body_height_delta_ = std::clamp(body_height_delta, -max_stand_body_height_delta_, max_stand_body_height_delta_);
+}
+
+/**
+ * @brief DriverUnitreeB1::get_high_level_stand_pose_reference returns the target pose while the robot stands.
+ * @return {roll, pitch, yaw, body height delta}, after the saturation.
+ */
+std::tuple<double, double, double, double> DriverUnitreeB1::get_high_level_stand_pose_reference() const
+{
+    std::scoped_lock lock(data_mutex_);
+    return {stand_roll_, stand_pitch_, stand_yaw_, stand_body_height_delta_};
+}
+
+/**
+ * @brief DriverUnitreeB1::is_standing returns true while the robot is commanded in FORCE_STAND because of
+ *        TARGET_BEHAVIOR::STAND, including the time in the neutral pose before walking again.
+ * @return true while the robot stands.
+ */
+bool DriverUnitreeB1::is_standing() const
+{
+    return standing_;
+}
+
+/**
  * @brief DriverUnitreeB1::show_high_mode displays the current high-level mode
  */
 void DriverUnitreeB1::show_high_mode() const
@@ -1012,6 +1108,7 @@ void DriverUnitreeB1::_robot_control()
                 double w;
                 double vx;
                 double vy;
+                TARGET_BEHAVIOR target_behavior;
                 {
                     std::scoped_lock lock(data_mutex_);
                     forward_speed = high_level_forward_speed_;
@@ -1021,7 +1118,12 @@ void DriverUnitreeB1::_robot_control()
                     const VectorXd vec_linear_velocity = high_level_linear_velocity_.vec3();
                     vx = vec_linear_velocity(0);
                     vy = vec_linear_velocity(1);
+                    target_behavior = target_behavior_;
                 }
+                // Standing (or leaving the stand pose) takes priority over the target speeds.
+                if (_command_stand_or_leave_it(target_behavior, w, vx, vy))
+                    break;
+
                 bool all_speeds_are_zero = are_approximately_equal(forward_speed, 0.0) &&
                                            are_approximately_equal(side_speed, 0.0) &&
                                            are_approximately_equal(yaw_speed, 0.0);
@@ -1057,6 +1159,10 @@ void DriverUnitreeB1::_robot_control()
 
             }else{
                 // This part of the code is executed when the driver is deinitialized.
+                // A standing robot first goes back to the neutral pose, so that it never walks with a tilted body.
+                if (_command_stand_or_leave_it(TARGET_BEHAVIOR::VELOCITY, 0.0, 0.0, 0.0))
+                    break;
+
                 // The start time belongs to this object (a function-local static would be shared by every
                 // instance and would never be reset).
                 if (!deinitialize_sequence_started_)
@@ -1173,6 +1279,102 @@ void DriverUnitreeB1::_command_in_high_level_mode(const HIGH_LEVEL_MODE& high_le
     impl_->high_cmd_.velocity[1] = side_vel;
     impl_->high_cmd_.yawSpeed = yaw_speed;
     impl_->udp_->SetSend(impl_->high_cmd_);
+}
+
+
+/**
+ * @brief DriverUnitreeB1::_command_force_stand sets the high_cmd_ struct to FORCE_STAND with the given pose and
+ *        sends it to the robot. The pose must already be within the ranges of the robot.
+ * @param roll The roll angle (rad).
+ * @param pitch The pitch angle (rad).
+ * @param yaw The yaw angle (rad).
+ * @param body_height_delta The body height with respect to the default height of the robot (m).
+ */
+void DriverUnitreeB1::_command_force_stand(const double &roll, const double &pitch, const double &yaw,
+                                           const double &body_height_delta)
+{
+    _initialize_high_cmd_variable();
+    impl_->high_cmd_.mode = high_level_mode_map_.at(HIGH_LEVEL_MODE::FORCE_STAND);
+    impl_->high_cmd_.euler.at(0) = roll;
+    impl_->high_cmd_.euler.at(1) = pitch;
+    impl_->high_cmd_.euler.at(2) = yaw;
+    impl_->high_cmd_.bodyHeight = body_height_delta;
+    impl_->udp_->SetSend(impl_->high_cmd_);
+}
+
+/**
+ * @brief DriverUnitreeB1::_command_stand_or_leave_it commands the robot while it stands, or while it leaves the
+ *        stand pose. It is used by the control thread.
+ *
+ *        - TARGET_BEHAVIOR::STAND: the robot walks with zero velocity until its velocities are below
+ *          speed_threshold_to_force_stand_mode_ (FORCE_STAND cannot stop a moving robot). From then on, it stands
+ *          (FORCE_STAND) with the target pose, whatever its measured velocities.
+ *        - TARGET_BEHAVIOR::VELOCITY after standing: the robot stands in the neutral pose for stand_exit_duration_,
+ *          as in unitree_legged_sdk/example/example_walk.cpp, so that it does not start walking with a tilted body.
+ *
+ * @param target_behavior The target behavior.
+ * @param w The measured yaw rate.
+ * @param vx The measured forward velocity.
+ * @param vy The measured side velocity.
+ * @return true if the robot was commanded; false if the robot neither stands nor leaves the stand pose, so the
+ *         caller commands it.
+ */
+bool DriverUnitreeB1::_command_stand_or_leave_it(const TARGET_BEHAVIOR &target_behavior,
+                                                 const double &w, const double &vx, const double &vy)
+{
+    if (target_behavior == TARGET_BEHAVIOR::STAND)
+    {
+        leaving_stand_ = false;
+        if (!standing_)
+        {
+            if (std::abs(w) >= speed_threshold_to_force_stand_mode_ ||
+                std::abs(vx)>= speed_threshold_to_force_stand_mode_ ||
+                std::abs(vy)>= speed_threshold_to_force_stand_mode_)
+            {
+                _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0.0, 0.0, 0.0);
+                return true;
+            }
+            standing_ = true;
+            if (verbosity_)
+                std::cerr<<"DriverUnitreeB1. The robot is stopped. FORCE_STAND."<<std::endl;
+            // The orientation of the robot when it starts standing (the frame F_f of sas_tools).
+            std::scoped_lock lock(data_mutex_);
+            last_IMU_orientation_when_robot_stopped_ = IMU_orientation_;
+        }
+
+        double roll;
+        double pitch;
+        double yaw;
+        double body_height_delta;
+        {
+            std::scoped_lock lock(data_mutex_);
+            roll = stand_roll_;
+            pitch = stand_pitch_;
+            yaw = stand_yaw_;
+            body_height_delta = stand_body_height_delta_;
+        }
+        _command_force_stand(roll, pitch, yaw, body_height_delta);
+        return true;
+    }
+
+    if (!standing_)
+        return false;
+
+    if (!leaving_stand_)
+    {
+        leaving_stand_ = true;
+        leave_stand_start_time_ = motiontime_;
+        if (verbosity_)
+            std::cerr<<"DriverUnitreeB1. Leaving FORCE_STAND: neutral pose for "<<stand_exit_duration_<<" ms."<<std::endl;
+    }
+    if (motiontime_ - leave_stand_start_time_ < stand_exit_duration_)
+    {
+        _command_force_stand(0.0, 0.0, 0.0, 0.0);
+        return true;
+    }
+    standing_ = false;
+    leaving_stand_ = false;
+    return false;
 }
 
 
