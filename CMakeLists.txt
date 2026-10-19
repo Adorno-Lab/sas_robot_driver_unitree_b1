@@ -5,6 +5,11 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# The control loop of the robot runs every 2 ms, so it is optimized unless another build type is requested.
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -12,18 +17,13 @@ find_package(Eigen3 REQUIRED)
 find_package(sas_core REQUIRED)
 find_package(sas_common REQUIRED)
 find_package(sas_robot_driver REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(std_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
 find_package(sas_tools REQUIRED)
 find_package(marinholab_sas_core REQUIRED)
-FIND_PACKAGE(Threads REQUIRED)
 
 
 ##########################################################
 ################## NOT ROS2 libraries  ###################
 ##########################################################
-
 
 message("-- CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64.*")
@@ -33,10 +33,6 @@ if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "aarch64.*")
  set(ARCH arm64)
 endif()
 set(UNITREE_LEGGED_SDK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/unitree_legged_sdk/)
-include_directories(${UNITREE_LEGGED_SDK_DIR}/include/)
-link_directories(${UNITREE_LEGGED_SDK_DIR}/lib/cpp/${ARCH})
-set(CMAKE_CXX_FLAGS "-O3 -fPIC")
-
 
 
 ####################################
@@ -48,17 +44,21 @@ set(CMAKE_CXX_FLAGS "-O3 -fPIC")
 
 add_library(${PROJECT_NAME} SHARED
     src/sas_robot_driver_unitree_b1.cpp
+    src/RobotDriverUnitreeB1Leg.cpp
     src/DriverUnitreeB1.cpp
     )
 
 target_link_libraries(${PROJECT_NAME}
     ${UNITREE_LEGGED_SDK_DIR}/lib/cpp/${ARCH}/libunitree_legged_sdk.so
     marinholab::sas::core
+    dqrobotics
 )
 
 ament_target_dependencies(${PROJECT_NAME}
-rclcpp geometry_msgs std_msgs sensor_msgs sas_common sas_core sas_conversions Eigen3 sas_tools
-)
+    sas_core
+    sas_tools
+    Eigen3
+    )
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC
@@ -70,9 +70,14 @@ target_include_directories(${PROJECT_NAME}
     $<BUILD_INTERFACE:${UNITREE_LEGGED_SDK_DIR}/include>
     )
 
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
+
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-Eigen3 rclcpp geometry_msgs std_msgs sensor_msgs sas_common sas_core sas_conversions sas_tools marinholab_sas_core
+    Eigen3
+    sas_core
+    sas_tools
+    marinholab_sas_core
     )
 
 install(
@@ -109,7 +114,6 @@ add_executable(${RCLCPP_LOCAL_BINARY_NAME}
     src/sas_robot_driver_unitree_b1_node_main.cpp
     )
 
-
 ament_target_dependencies(${RCLCPP_LOCAL_BINARY_NAME}
 
     rclcpp
@@ -117,7 +121,6 @@ ament_target_dependencies(${RCLCPP_LOCAL_BINARY_NAME}
     sas_core
     sas_robot_driver
     sas_tools
-
     )
 
 
@@ -125,11 +128,8 @@ target_link_libraries(${RCLCPP_LOCAL_BINARY_NAME}
     ${PROJECT_NAME}
     )
 
-
 target_include_directories(${RCLCPP_LOCAL_BINARY_NAME} PUBLIC
-
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-
     $<INSTALL_INTERFACE:include>)
 
 

@@ -24,7 +24,6 @@ def generate_launch_description():
             namespace="sas_b1",
             output="screen",
             parameters=[{
-                "robot_name": "b1_1",
                 "thread_sampling_time_sec": 0.002,
                 "mode": "None",
                 "LIE_DOWN_ROBOT_WHEN_DEINITIALIZE": False,

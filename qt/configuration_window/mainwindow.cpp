@@ -5,7 +5,7 @@
 MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow),
-    st_break_loops_{break_loops},
+    shutdown_signaler_{std::make_shared<marinholab::sas::core::ShutdownSignaler>(break_loops)},
     time_step_in_milliseconds_{100},
     elapsed_time_{0}
 {
@@ -220,8 +220,8 @@ void MainWindow::update_dial_change_operation_high_level_mode()
 
 void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
 {
-    // Set by the SIGINT handler. Closing the window deinitializes the driver in the destructor.
-    if (*st_break_loops_)
+    // Closing the window deinitializes the driver in the destructor.
+    if (shutdown_signaler_->should_shutdown())
     {
         killTimer(timerId_);
         timerId_ = 0;
@@ -369,7 +369,7 @@ void MainWindow::_connect()
         std::vector<DriverUnitreeB1::CUSTOM_FLAGS> custom_flags;
         if (configuration_.FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO)
             custom_flags.push_back(DriverUnitreeB1::CUSTOM_FLAGS::FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO);
-        unitree_b1_driver_ = std::make_shared<DriverUnitreeB1>(st_break_loops_,
+        unitree_b1_driver_ = std::make_shared<DriverUnitreeB1>(shutdown_signaler_,
                                           DriverUnitreeB1::MODE::VelocityControl, // Driver mode
                                           DriverUnitreeB1::LEVEL::HIGH,       // Level mode
                                           true,   //verbosity

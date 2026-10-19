@@ -65,8 +65,8 @@ public:
 
 /**
  * @brief DriverUnitreeB1::DriverUnitreeB1 constructor of the class
- * @param st_break_loops Use this flag to break internal loops. This is useful to stop the robot using a signal
- *              interruption by the user.
+ * @param shutdown_signaler The shutdown is requested through it if an exception is thrown in a thread of the
+ *              driver (the robot is also commanded to stop). It is usually the one called by the SIGINT handler.
  * @param mode  The operation mode. Select the control strategy to command the robot.
  * @param level The control level to be used. HIGH or LOW.
  *              The HIGH level is used to send task space commands
@@ -91,7 +91,7 @@ public:
  *          // This class follows the SmartArmStack driver principles, in which four methods are required to
  *          // start and finish the robot communication.
  *
-            DriverUnitreeB1 B1(&kill_this_process,
+            DriverUnitreeB1 B1(shutdown_signaler,
                             DriverUnitreeB1::MODE::VelocityControl, // Driver mode
                             DriverUnitreeB1::LEVEL::HIGH,       // Level mode
                             true,   //verbosity
@@ -113,7 +113,7 @@ public:
             B1.disconnect();    // Fourth method to be called. It is required to deinitialize before disconnecting.
 
  */
-DriverUnitreeB1::DriverUnitreeB1(std::atomic_bool *st_break_loops,
+DriverUnitreeB1::DriverUnitreeB1(const std::shared_ptr<marinholab::sas::core::ShutdownSignaler> &shutdown_signaler,
                                            const MODE &mode,
                                            const LEVEL &level,
                                            const bool &verbosity,
@@ -123,7 +123,7 @@ DriverUnitreeB1::DriverUnitreeB1(std::atomic_bool *st_break_loops,
                                            const int &TARGET_PORT,
                                            const int &LOCAL_PORT,
                                            const std::vector<CUSTOM_FLAGS>& custom_flags):
-    st_break_loops_{st_break_loops},
+    shutdown_signaler_{shutdown_signaler},
     custom_flags_{custom_flags},
     ip_{TARGET_IP},
     port_{TARGET_PORT},
@@ -131,6 +131,9 @@ DriverUnitreeB1::DriverUnitreeB1(std::atomic_bool *st_break_loops,
     timeout_in_milliseconds_{TIMEOUT_IN_MILLISECONDS},
     LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_{LIE_DOWN_ROBOT_WHEN_DEINITIALIZE}
 {
+    if (!shutdown_signaler_)
+        throw std::invalid_argument("DriverUnitreeB1::DriverUnitreeB1. The shutdown signaler is null.");
+
     impl_        = std::make_shared<DriverUnitreeB1::Impl>();
     impl_->safe_ = std::make_shared<UNITREE_LEGGED_SDK::Safety>(UNITREE_LEGGED_SDK::LeggedType::B1);
     impl_->udp_  = std::make_shared<UNITREE_LEGGED_SDK::UDP>
@@ -646,7 +649,7 @@ VectorXd DriverUnitreeB1::get_joint_temperatures(const BRANCH &branch) const
 
 /**
  * @brief DriverUnitreeB1::get_IMU_orientation returns the IMU-based estimated orientation.
- * @return
+ * @return A unit quaternion, or DQ(0) until the first message of the robot arrives.
  */
 DQ DriverUnitreeB1::get_IMU_orientation() const
 {
@@ -1352,16 +1355,19 @@ void DriverUnitreeB1::_control_loop_callback()
 }
 
 /**
- * @brief DriverUnitreeB1::_report_loop_exception reports the first exception caught in a thread callback.
- *        The callbacks run every 2 ms, so the following exceptions are not reported.
+ * @brief DriverUnitreeB1::_report_loop_exception reports the first exception caught in a thread callback and
+ *        requests the shutdown. The callbacks run every 2 ms, so the following exceptions are not reported.
  * @param thread_name The name of the thread.
  * @param what The message of the exception.
  */
 void DriverUnitreeB1::_report_loop_exception(const std::string &thread_name, const std::string &what)
 {
     if (!loop_exception_reported_.exchange(true))
+    {
         std::cerr<<"DriverUnitreeB1::_report_loop_exception. Exception in the "<<thread_name
-                 <<" thread: "<<what<<std::endl;
+                 <<" thread: "<<what<<". Requesting shutdown."<<std::endl;
+        shutdown_signaler_->shutdown();
+    }
 }
 
 

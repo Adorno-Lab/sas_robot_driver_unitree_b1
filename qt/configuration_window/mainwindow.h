@@ -49,7 +49,8 @@ private:
     };
     RobotConfiguration configuration_;
     std::shared_ptr<DriverUnitreeB1> unitree_b1_driver_;
-    std::atomic_bool* st_break_loops_;
+    // Set by the SIGINT handler (through break_loops) or by the driver after an exception in its threads.
+    std::shared_ptr<marinholab::sas::core::ShutdownSignaler> shutdown_signaler_;
 
 public:
     MainWindow(std::atomic_bool *break_loops, QWidget *parent = nullptr);

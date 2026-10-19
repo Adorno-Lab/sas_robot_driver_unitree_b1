@@ -25,6 +25,7 @@
 
 #pragma once
 #include <dqrobotics/DQ.h>
+#include <marinholab/sas/core/sas_shutdown_signaler.hpp>
 #include <marinholab/sas/core/sas_thread_manager.hpp>
 #include <atomic>
 #include <memory>
@@ -75,9 +76,9 @@ public:
         TROT_OBSTACLE
     };
 
-protected:
-    std::atomic_bool* st_break_loops_;
 private:
+    std::shared_ptr<marinholab::sas::core::ShutdownSignaler> shutdown_signaler_;
+
     enum class STATUS{
         IDLE,
         CONNECTED,
@@ -210,7 +211,7 @@ private:
     unsigned long long deinitialize_start_time_{0};
     int deinitialize_phase_{-1};
 
-    DQ IMU_orientation_{1};
+    DQ IMU_orientation_{0}; // DQ(0) until the first message of the robot arrives
     DQ IMU_gyroscope_{0};
     DQ IMU_accelerometer_{0};
     Vector3d IMU_rpy_ = Vector3d::Zero();
@@ -287,7 +288,7 @@ private:
     void _stop_control_thread();
     void _control_loop_callback();
 
-    // Used only by the threads, to report the first exception caught in their callbacks.
+    // Used only by the threads, to report the first exception caught in their callbacks and request the shutdown.
     std::atomic<bool> loop_exception_reported_{false};
     void _report_loop_exception(const std::string& thread_name, const std::string& what);
 
@@ -307,7 +308,7 @@ public:
     ~DriverUnitreeB1();
     DriverUnitreeB1(const DriverUnitreeB1&) = delete;
     DriverUnitreeB1& operator= (const DriverUnitreeB1&) = delete;
-    DriverUnitreeB1(std::atomic_bool* st_break_loops,
+    DriverUnitreeB1(const std::shared_ptr<marinholab::sas::core::ShutdownSignaler>& shutdown_signaler,
                     const MODE& mode = MODE::None,
                     const LEVEL& level = LEVEL::HIGH,
                     const bool& verbosity = true,

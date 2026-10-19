@@ -25,8 +25,8 @@ def generate_launch_description():
             #output='screen',  
             #emulate_tty=True,  
             parameters=[{
-                "robot_name": "b1_1",
                 "thread_sampling_time_sec": 0.002,
+                "twist_timeout_sec": 0.2, # A zero twist is sent when no twist arrives in time.
                 "mode": "VelocityControl",
                 "LIE_DOWN_ROBOT_WHEN_DEINITIALIZE": False,
                 "ROBOT_IP": "192.168.8.170", #192.168.123.220
