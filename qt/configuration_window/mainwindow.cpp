@@ -1,6 +1,6 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
-#include <iomanip>
+#include <cmath>
 
 MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
     : QMainWindow(parent)
@@ -40,9 +40,9 @@ MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
     ui->horizontalSlider_side_speed_->setTickInterval(1);
     ui->doubleSpinBox_side_speed_->setRange(-0.1,0.1);
 
-    ui->horizontalSlider_yaw_->setRange(-30,30);
-    ui->horizontalSlider_yaw_->setTickInterval(1);
-    ui->doubleSpinBox_yaw_->setRange(-0.3,0.3);
+    ui->horizontalSlider_yaw_speed_->setRange(-10,10);
+    ui->horizontalSlider_yaw_speed_->setTickInterval(1);
+    ui->doubleSpinBox_yaw_speed_->setRange(-0.1,0.1);
 
 
     ui->dial_select_robot_->setRange(1,3);
@@ -77,6 +77,10 @@ MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
     ui->pushButton_disconnect_->setEnabled(false);
 
     ui->pushButton_zero_commands_->setStyleSheet(pause_yellow_color_);
+
+    // The driver has no target mode: it walks with the commanded speeds (see DriverUnitreeB1::_robot_control()).
+    ui->pushButton_target_mode_->setText("N/A");
+    ui->pushButton_target_mode_->setEnabled(false);
 
     connect(ui->pushButton_zero_commands_, &QPushButton::clicked,
             this,&MainWindow::_set_zero_commands);
@@ -117,10 +121,12 @@ MainWindow::MainWindow(std::atomic_bool *break_loops, QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-    delete ui;
-    killTimer(timerId_);
+    if (timerId_ != 0)
+        killTimer(timerId_);
+    // _deinitialize() and _disconnect() use ui, so it is deleted afterwards.
     _deinitialize();
     _disconnect();
+    delete ui;
     std::cerr<<"destructor called"<<std::endl;
 }
 
@@ -214,6 +220,15 @@ void MainWindow::update_dial_change_operation_high_level_mode()
 
 void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
 {
+    // Set by the SIGINT handler. Closing the window deinitializes the driver in the destructor.
+    if (*st_break_loops_)
+    {
+        killTimer(timerId_);
+        timerId_ = 0;
+        close();
+        return;
+    }
+
     elapsed_time_ += time_step_in_milliseconds_;
 
     // Convert to seconds
@@ -247,7 +262,7 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
 
 
 
-        if (w(2) > max_read_vx_)
+        if (w(2) > max_read_wz_)
             max_read_wz_ = w(2);
         if (v(0) > max_read_vx_)
             max_read_vx_ = v(0);
@@ -259,97 +274,43 @@ void MainWindow::timerEvent([[maybe_unused]] QTimerEvent *event)
 
 
 
-        // compute Euler angles
-        auto r_0b = unitree_b1_driver_->get_IMU_orientation();
-       // Eigen::Quaterniond q1(r(0), r(1), r(2), r(3));
-       // Eigen::Matrix3d R1 = q1.toRotationMatrix();
+        // Euler angles computed from the IMU orientation, and relative to the orientation recorded while stopped
+        const DQ r_0b = unitree_b1_driver_->get_IMU_orientation();
+        if (is_unit(r_0b))
+        {
+            const Eigen::Vector3d rpy_from_orientation = _compute_euler_angles_from_unit_quaternion(r_0b);
+            ui->doubleSpinBox_computed_roll_->setValue(rpy_from_orientation.x());
+            ui->doubleSpinBox_computed_pitch_->setValue(rpy_from_orientation.y());
+            ui->doubleSpinBox_computed_yaw_->setValue(rpy_from_orientation.z());
 
+            const DQ r_0f = unitree_b1_driver_->get_last_IMU_orientation_when_robot_stopped();
+            if (is_unit(r_0f))
+            {
+                const Eigen::Vector3d rpy_rel = _compute_euler_angles_from_unit_quaternion(r_0f.conj()*r_0b);
+                ui->doubleSpinBox_computed_rel_roll_->setValue(rpy_rel.x());
+                ui->doubleSpinBox_computed_rel_pitch_->setValue(rpy_rel.y());
+                ui->doubleSpinBox_computed_rel_yaw_->setValue(rpy_rel.z());
+            }
+        }
 
-        // Method B: Manual extraction
-        //double roll_manual  = std::atan2(R1(2, 1), R1(2, 2));
-        //double pitch_manual = std::atan2(-R1(2, 0),
-         //                                std::sqrt(R1(2, 1)*R1(2, 1) + R1(2, 2)*R1(2, 2)));
-       // double yaw_manual   = std::atan2(R1(1, 0), R1(0, 0));
-
-        Eigen::Vector3d  rpy_from_orientation = _compute_euler_angles_from_unit_quaternion(r_0b);
-
-        /*
-        // Your existing RPY angles from driver
-        Eigen::Vector3d rpy_from_driver = unitree_b1_driver_->get_IMU_rpy_angles();
-
-        DQ r_0f = unitree_b1_driver_->get_last_IMU_orientation_when_robot_stopped();
-        //std::cout <<" r_0f: "<<r_0f<<std::endl;
-        DQ r_fb = r_0f.conj()*r_0b;
-
-        Eigen::Vector3d rpy_rel = _compute_euler_angles_from_unit_quaternion(r_fb);
-
-
-        ui->doubleSpinBox_computed_rel_roll_->setValue(rpy_rel.x());
-        ui->doubleSpinBox_computed_rel_pitch_->setValue(rpy_rel.y());
-        ui->doubleSpinBox_computed_rel_yaw_->setValue(rpy_rel.z());
-
-
-        ui->doubleSpinBox_computed_roll_->setValue(rpy_from_orientation.x());
-        ui->doubleSpinBox_computed_pitch_->setValue(rpy_from_orientation.y());
-        ui->doubleSpinBox_computed_yaw_->setValue(rpy_from_orientation.z());
-        */
-
-        // Print comparison
-        std::cout << "========== RPY ANGLE COMPARISON ==========" << std::endl;
-        std::cout << std::fixed << std::setprecision(6);
-        std::cout << std::setw(15) << "Method"
-                  << std::setw(15) << "Roll (X)"
-                  << std::setw(15) << "Pitch (Y)"
-                  << std::setw(15) << "Yaw (Z)" << std::endl;
-        std::cout << "----------------------------------------------" << std::endl;
-
-/*
-        std::cout << std::setw(15) << "Manual Extraction"
-                  << std::setw(15) << rpy_from_orientation.x()
-                  << std::setw(15) << rpy_from_orientation.y()
-                  << std::setw(15) << rpy_from_orientation.z()  << " rad" << std::endl;
-
-        std::cout << std::setw(15) << "Driver Direct"
-                  << std::setw(15) << rpy_from_driver.x()
-                  << std::setw(15) << rpy_from_driver.y()
-                  << std::setw(15) << rpy_from_driver.z() << " rad" << std::endl;
-
-        std::cout << std::setw(15) << "Relative"
-                  << std::setw(15) << rpy_rel.x()
-                  << std::setw(15) << rpy_rel.y()
-                  << std::setw(15) << rpy_rel.z()  << " rad" << std::endl;
-*/
-
-        std::cout << "==============================================" << std::endl;
-
+        // Euler angles reported by the IMU
+        const Vector3d rpy = unitree_b1_driver_->get_IMU_rpy_angles();
+        ui->doubleSpinBox_read_roll_->setValue(rpy.x());
+        ui->doubleSpinBox_read_pitch_->setValue(rpy.y());
+        ui->doubleSpinBox_read_yaw_->setValue(rpy.z());
 
         ui->doubleSpinBox_read_vx_->setValue(v(0));
         ui->doubleSpinBox_read_vy_->setValue(v(1));
         ui->doubleSpinBox_read_wz_->setValue(w(2));
 
-
-
-
         ui->progressBar_battery->setValue(unitree_b1_driver_->get_state_of_charge());
 
-        /*
-
-        std::string current_mode = unitree_b1_driver_->high_level_mode_to_string(
-                                   unitree_b1_driver_->get_current_high_mode());
-        std::string target_mode  = unitree_b1_driver_->high_level_mode_to_string(
-                                   unitree_b1_driver_->get_target_high_mode());
-        std::string gait_type  =   unitree_b1_driver_->gait_type_to_string(
-                                   unitree_b1_driver_->get_current_gait_type());
-
-        ui->pushButton_target_mode_->setText(QString(target_mode.c_str()));
+        const std::string current_mode = DriverUnitreeB1::high_level_mode_to_string(
+                                         unitree_b1_driver_->get_current_high_mode());
+        const std::string gait_type = DriverUnitreeB1::gait_type_to_string(
+                                      unitree_b1_driver_->get_current_gait_type());
         ui->pushButton_current_mode_->setText(QString(current_mode.c_str()));
         ui->pushButton_gait_type_->setText(QString(gait_type.c_str()));
-
-        Vector3d rpy = unitree_b1_driver_->get_IMU_rpy_angles();
-        ui->doubleSpinBox_read_roll_->setValue(rpy.x());
-        ui->doubleSpinBox_read_pitch_->setValue(rpy.y());
-        ui->doubleSpinBox_read_yaw_->setValue(rpy.z());
-        */
 
         ui->doubleSpinBox_read_height_->setValue(unitree_b1_driver_->get_body_height());
 
@@ -401,7 +362,6 @@ void MainWindow::_set_zero_commands()
 void MainWindow::_connect()
 {
     ui->pushButton_connect_->setEnabled(false);
-    ui->pushButton_initialize_->setEnabled(true);
     ui->dial_select_robot_->setEnabled(false);
 
     if (!unitree_b1_driver_)
@@ -421,7 +381,21 @@ void MainWindow::_connect()
                                           custom_flags);
 
     }
-    unitree_b1_driver_->connect();
+    try
+    {
+        unitree_b1_driver_->connect();
+        ui->pushButton_initialize_->setEnabled(true);
+    }
+    catch (const std::exception& e)
+    {
+        // Release the driver (and its UDP port), so that the connection can be tried again.
+        unitree_b1_driver_.reset();
+        std::cerr<<"MainWindow::_connect. "<<e.what()<<std::endl;
+        ui->statusbar->showMessage(QString("Connection failed: ") + e.what(), 10000);
+        ui->label_status_->setText("Connection failed!");
+        ui->pushButton_connect_->setEnabled(true);
+        ui->dial_select_robot_->setEnabled(true);
+    }
 }
 
 void MainWindow::_initialize()
@@ -463,16 +437,16 @@ void MainWindow::_config_spin_boxes_as_read_only(const std::vector<QDoubleSpinBo
 
 Vector3d MainWindow::_compute_euler_angles_from_unit_quaternion(const DQ &r) const
 {
-    VectorXd rv = r.vec4();
-    Eigen::Quaterniond q(rv(0), rv(1), rv(2), rv(3));
-    Eigen::Matrix3d R1 = q.toRotationMatrix();
+    // The columns of the rotation matrix are the rotated axes.
+    const VectorXd x_axis = (r*i_*r.conj()).vec3();
+    const VectorXd y_axis = (r*j_*r.conj()).vec3();
+    const VectorXd z_axis = (r*k_*r.conj()).vec3();
 
-
-    // Method B: Manual extraction
-    double roll_manual  = std::atan2(R1(2, 1), R1(2, 2));
-    double pitch_manual = std::atan2(-R1(2, 0),
-                                     std::sqrt(R1(2, 1)*R1(2, 1) + R1(2, 2)*R1(2, 2)));
-    double yaw_manual   = std::atan2(R1(1, 0), R1(0, 0));
+    // ZYX (roll-pitch-yaw) angles
+    double roll_manual  = std::atan2(y_axis(2), z_axis(2));
+    double pitch_manual = std::atan2(-x_axis(2),
+                                     std::sqrt(y_axis(2)*y_axis(2) + z_axis(2)*z_axis(2)));
+    double yaw_manual   = std::atan2(x_axis(1), x_axis(0));
 
 
     // Return as Vector3d (roll, pitch, yaw) - radians

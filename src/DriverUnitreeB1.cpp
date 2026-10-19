@@ -655,6 +655,27 @@ DQ DriverUnitreeB1::get_IMU_orientation() const
 }
 
 /**
+ * @brief DriverUnitreeB1::get_IMU_rpy_angles returns the roll, pitch, and yaw angles reported by the IMU.
+ * @return The angles (unit: rad) in the order roll, pitch, yaw.
+ */
+Vector3d DriverUnitreeB1::get_IMU_rpy_angles() const
+{
+    std::scoped_lock lock(data_mutex_);
+    return IMU_rpy_;
+}
+
+/**
+ * @brief DriverUnitreeB1::get_last_IMU_orientation_when_robot_stopped returns the IMU orientation recorded while
+ *        the commanded high-level speeds are zero. While the robot walks, it keeps the last recorded value.
+ * @return The IMU orientation. It is DQ(1) before the control thread runs.
+ */
+DQ DriverUnitreeB1::get_last_IMU_orientation_when_robot_stopped() const
+{
+    std::scoped_lock lock(data_mutex_);
+    return last_IMU_orientation_when_robot_stopped_;
+}
+
+/**
  * @brief DriverUnitreeB1::get_IMU_gyroscope returns the IMU-based estimated velocities.
  * @return
  */
@@ -894,6 +915,63 @@ void DriverUnitreeB1::show_high_mode() const
 }
 
 /**
+ * @brief DriverUnitreeB1::get_current_high_mode returns the high-level mode reported by the robot.
+ * @return The current high-level mode.
+ */
+DriverUnitreeB1::HIGH_LEVEL_MODE DriverUnitreeB1::get_current_high_mode() const
+{
+    std::scoped_lock lock(data_mutex_);
+    return current_high_level_mode_;
+}
+
+/**
+ * @brief DriverUnitreeB1::get_current_gait_type returns the gait type reported by the robot.
+ * @return The current gait type.
+ */
+DriverUnitreeB1::GAIT_TYPE DriverUnitreeB1::get_current_gait_type() const
+{
+    std::scoped_lock lock(data_mutex_);
+    return current_gait_type_;
+}
+
+/**
+ * @brief DriverUnitreeB1::high_level_mode_to_string converts a high-level mode to a string.
+ * @param mode The high-level mode.
+ * @return The name of the mode, e.g. "TARGET_VELOCITY_WALKING".
+ */
+std::string DriverUnitreeB1::high_level_mode_to_string(const HIGH_LEVEL_MODE &mode)
+{
+    switch (mode) {
+    case HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND: return "IDLE_DEFAULT_STAND";
+    case HIGH_LEVEL_MODE::FORCE_STAND: return "FORCE_STAND";
+    case HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING: return "TARGET_VELOCITY_WALKING";
+    case HIGH_LEVEL_MODE::PATH_MODE_WALKING: return "PATH_MODE_WALKING";
+    case HIGH_LEVEL_MODE::POSITION_STAND_DOWN: return "POSITION_STAND_DOWN";
+    case HIGH_LEVEL_MODE::POSITION_STAND_UP: return "POSITION_STAND_UP";
+    case HIGH_LEVEL_MODE::DAMPING_MODE: return "DAMPING_MODE";
+    case HIGH_LEVEL_MODE::RECOVERY_STAND: return "RECOVERY_STAND";
+    }
+    return "UNKNOWN";
+}
+
+/**
+ * @brief DriverUnitreeB1::gait_type_to_string converts a gait type to a string.
+ * @param gait_type The gait type.
+ * @return The name of the gait type, e.g. "TROT".
+ */
+std::string DriverUnitreeB1::gait_type_to_string(const GAIT_TYPE &gait_type)
+{
+    switch (gait_type) {
+    case GAIT_TYPE::IDLE: return "IDLE";
+    case GAIT_TYPE::TROT: return "TROT";
+    case GAIT_TYPE::TROT_RUNNING: return "TROT_RUNNING";
+    case GAIT_TYPE::CLIMB_STAIR: return "CLIMB_STAIR";
+    case GAIT_TYPE::TROT_OBSTACLE: return "TROT_OBSTACLE";
+    }
+    return "UNKNOWN";
+}
+
+/**
  * @brief DriverUnitreeB1::get_motion_time returns the elapsed time of the thread control loop.
  * @return
  */
@@ -944,6 +1022,11 @@ void DriverUnitreeB1::_robot_control()
                 bool all_speeds_are_zero = are_approximately_equal(forward_speed, 0.0) &&
                                            are_approximately_equal(side_speed, 0.0) &&
                                            are_approximately_equal(yaw_speed, 0.0);
+                if (all_speeds_are_zero)
+                {
+                    std::scoped_lock lock(data_mutex_);
+                    last_IMU_orientation_when_robot_stopped_ = IMU_orientation_;
+                }
                 bool force_stand_mode = flag_in_custom_flags(CUSTOM_FLAGS::FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO, custom_flags_);
                 if (all_speeds_are_zero)
                 {
@@ -1125,11 +1208,14 @@ void DriverUnitreeB1::_update_data_from_robot_state()
                              impl_->high_state_.position.at(1)*j_+
                              impl_->high_state_.position.at(2)*k_;
         body_height_ = impl_->high_state_.bodyHeight;
-        // An exception here would terminate the process from the SDK thread. Thus, a mode that is
-        // not in the map (e.g., an undocumented mode of the firmware) keeps the last known mode.
+        // An exception here would terminate the process from the thread. Thus, a mode or gait type that is
+        // not in the map (e.g., an undocumented value of the firmware) keeps the last known value.
         const auto mode = high_level_mode_map_inv_.find(impl_->high_state_.mode);
         if (mode != high_level_mode_map_inv_.end())
             current_high_level_mode_ = mode->second;
+        const auto gait_type = gait_type_map_inv_.find(impl_->high_state_.gaitType);
+        if (gait_type != gait_type_map_inv_.end())
+            current_gait_type_ = gait_type->second;
 
         high_level_linear_velocity_  = impl_->high_state_.velocity.at(0)*i_+
                                        impl_->high_state_.velocity.at(1)*j_;
@@ -1339,6 +1425,8 @@ void DriverUnitreeB1::_update_IMU_data(const T &state)
     IMU_accelerometer_  = state.imu.accelerometer.at(0)*i_+
                           state.imu.accelerometer.at(1)*j_+
                           state.imu.accelerometer.at(2)*k_;
+
+    IMU_rpy_ << state.imu.rpy.at(0), state.imu.rpy.at(1), state.imu.rpy.at(2);
 }
 
 /**

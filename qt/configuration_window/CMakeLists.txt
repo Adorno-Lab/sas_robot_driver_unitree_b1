@@ -6,20 +6,27 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 find_package(Eigen3 REQUIRED)
+find_package(marinholab_sas_core REQUIRED)
 
 
 INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR})
 
+if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64.*")
+ set(ARCH amd64)
+endif()
+if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "aarch64.*")
+ set(ARCH arm64)
+endif()
 set(UNITREE_LEGGED_SDK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../src/unitree_legged_sdk/)
 include_directories(${UNITREE_LEGGED_SDK_DIR}/include/)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../src/)
-link_directories(${UNITREE_LEGGED_SDK_DIR}/lib/cpp/amd64)
+link_directories(${UNITREE_LEGGED_SDK_DIR}/lib/cpp/${ARCH})
 set(CMAKE_CXX_FLAGS "-O3 -fPIC")
 
 set(PROJECT_SOURCES
@@ -55,8 +62,9 @@ endif()
 
 target_link_libraries(configuration_window PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
-    ${UNITREE_LEGGED_SDK_DIR}/lib/cpp/amd64/libunitree_legged_sdk.so
+    ${UNITREE_LEGGED_SDK_DIR}/lib/cpp/${ARCH}/libunitree_legged_sdk.so
     dqrobotics
+    marinholab::sas::core
 )
 
 

@@ -19,6 +19,12 @@ void sig_int_handler(int)
 
 int main(int argc, char *argv[])
 {
+    // MainWindow closes itself when this flag is set, so the driver is deinitialized before exiting.
+    if(signal(SIGINT, sig_int_handler) == SIG_ERR)
+    {
+        throw std::runtime_error("::Error setting the signal int handler.");
+    }
+
     QApplication a(argc, argv);
     MainWindow w{&kill_this_process};
     w.show();

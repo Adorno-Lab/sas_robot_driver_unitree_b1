@@ -55,6 +55,26 @@ using namespace Eigen;
  */
 class DriverUnitreeB1
 {
+public:
+    enum class HIGH_LEVEL_MODE{
+        IDLE_DEFAULT_STAND, // 0. idle, default stand
+        FORCE_STAND,        // 1. force stand (controlled by dBodyHeight + ypr)
+        TARGET_VELOCITY_WALKING, // 2. target velocity walking (controlled by velocity + yawSpeed)
+        PATH_MODE_WALKING,     // 4. path mode walking (reserve for future release)
+        POSITION_STAND_DOWN,   // 5. position stand down.
+        POSITION_STAND_UP,    // 6. position stand up
+        DAMPING_MODE,         // 7. damping mode
+        RECOVERY_STAND        // 9. recovery stand
+    };
+
+    enum class GAIT_TYPE{ // 0.idle  1.trot  2.trot running  3.climb stair  4.trot obstacle
+        IDLE,
+        TROT,
+        TROT_RUNNING,
+        CLIMB_STAIR,
+        TROT_OBSTACLE
+    };
+
 protected:
     std::atomic_bool* st_break_loops_;
 private:
@@ -68,16 +88,6 @@ private:
     STATUS current_status_{STATUS::IDLE};
     std::string status_msg_;
 
-    enum class HIGH_LEVEL_MODE{
-        IDLE_DEFAULT_STAND, // 0. idle, default stand
-        FORCE_STAND,        // 1. force stand (controlled by dBodyHeight + ypr)
-        TARGET_VELOCITY_WALKING, // 2. target velocity walking (controlled by velocity + yawSpeed)
-        PATH_MODE_WALKING,     // 4. path mode walking (reserve for future release)
-        POSITION_STAND_DOWN,   // 5. position stand down.
-        POSITION_STAND_UP,    // 6. position stand up
-        DAMPING_MODE,         // 7. damping mode
-        RECOVERY_STAND        // 9. recovery stand
-    };
     const std::unordered_map<HIGH_LEVEL_MODE, uint8_t> high_level_mode_map_ =
         {
         {HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND,      0},
@@ -102,6 +112,16 @@ private:
         };
 
     HIGH_LEVEL_MODE current_high_level_mode_{HIGH_LEVEL_MODE::IDLE_DEFAULT_STAND};
+
+    const std::unordered_map<uint8_t, GAIT_TYPE> gait_type_map_inv_ =
+        {
+        {0, GAIT_TYPE::IDLE},
+        {1, GAIT_TYPE::TROT},
+        {2, GAIT_TYPE::TROT_RUNNING},
+        {3, GAIT_TYPE::CLIMB_STAIR},
+        {4, GAIT_TYPE::TROT_OBSTACLE},
+        };
+    GAIT_TYPE current_gait_type_{GAIT_TYPE::IDLE}; // Reported by the robot in the high-level state
     void _command_in_high_level_mode(const HIGH_LEVEL_MODE& high_level_mode,
                                      const double& forward_vel,
                                      const double& side_vel,
@@ -193,6 +213,9 @@ private:
     DQ IMU_orientation_{1};
     DQ IMU_gyroscope_{0};
     DQ IMU_accelerometer_{0};
+    Vector3d IMU_rpy_ = Vector3d::Zero();
+    // IMU orientation while the commanded high-level speeds are zero. It is kept while the robot walks.
+    DQ last_IMU_orientation_when_robot_stopped_{1};
 
     DQ odometry_position_{0};
     double body_height_{0};
@@ -319,6 +342,8 @@ public:
     VectorXd get_joint_temperatures(const BRANCH& branch) const;
 
     DQ get_IMU_orientation() const;
+    Vector3d get_IMU_rpy_angles() const;
+    DQ get_last_IMU_orientation_when_robot_stopped() const;
     DQ get_IMU_gyroscope() const;
     DQ get_IMU_accelerometer() const;
     DQ get_IMU_pose() const;
@@ -344,6 +369,10 @@ public:
     double get_high_level_yaw_speed_reference() const;
 
     void show_high_mode() const;
+    HIGH_LEVEL_MODE get_current_high_mode() const;
+    GAIT_TYPE get_current_gait_type() const;
+    static std::string high_level_mode_to_string(const HIGH_LEVEL_MODE& mode);
+    static std::string gait_type_to_string(const GAIT_TYPE& gait_type);
     unsigned long long get_motion_time() const;
 
 
