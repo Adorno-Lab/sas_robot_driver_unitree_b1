@@ -28,7 +28,10 @@
 #include <cmath>
 #include <stdexcept>
 #include <thread>
-#include <unitree_legged_sdk/unitree_legged_sdk.h>
+#include <unitree_legged_sdk/comm.h>
+#include <unitree_legged_sdk/quadruped.h>
+#include <unitree_legged_sdk/safety.h>
+#include <unitree_legged_sdk/udp.h>
 
 
 bool flag_in_custom_flags(const DriverUnitreeB1::CUSTOM_FLAGS& flag,
@@ -53,10 +56,6 @@ public:
     std::vector<int> RL_index_ = {UNITREE_LEGGED_SDK::RL_0, UNITREE_LEGGED_SDK::RL_1, UNITREE_LEGGED_SDK::RL_2};
     std::vector<int> RR_index_ = {UNITREE_LEGGED_SDK::RR_0, UNITREE_LEGGED_SDK::RR_1, UNITREE_LEGGED_SDK::RR_2};
 
-    std::shared_ptr<UNITREE_LEGGED_SDK::LoopFunc> loop_control_;
-    std::shared_ptr<UNITREE_LEGGED_SDK::LoopFunc> loop_echo_state_;
-    std::shared_ptr<UNITREE_LEGGED_SDK::LoopFunc> loop_udpSend_;
-    std::shared_ptr<UNITREE_LEGGED_SDK::LoopFunc> loop_udpRecv_;
     Impl()
     {
 
@@ -147,17 +146,8 @@ DriverUnitreeB1::DriverUnitreeB1(std::atomic_bool *st_break_loops,
     else
         impl_->udp_->InitCmdData(impl_->high_cmd_);
 
+    // Locks the process memory (mlockall) and requests real-time scheduling for the calling thread.
     UNITREE_LEGGED_SDK::InitEnvironment();
-
-    /*
-    UNITREE_LEGGED_SDK::LoopFunc loop_control("control_loop", dt_, boost::bind(&RobotDriverUnitreeB1::RobotControl, this));
-    UNITREE_LEGGED_SDK::LoopFunc loop_udpSend("udp_send", dt_, 3,  boost::bind(&RobotDriverUnitreeB1::UDPSend, this));
-    UNITREE_LEGGED_SDK::LoopFunc loop_udpRecv("udp_recv", dt_, 3,  boost::bind(&RobotDriverUnitreeB1::UDPRecv, this));
-    */
-    impl_->loop_control_    = std::make_shared<UNITREE_LEGGED_SDK::LoopFunc>("control_loop", dt_, boost::bind(&DriverUnitreeB1::_robot_control,this));
-    impl_->loop_echo_state_ = std::make_shared<UNITREE_LEGGED_SDK::LoopFunc>("echo_state_loop", dt_, boost::bind(&DriverUnitreeB1::_robot_update,this));
-    impl_->loop_udpSend_    = std::make_shared<UNITREE_LEGGED_SDK::LoopFunc>("udp_send", dt_, 3,  boost::bind(&DriverUnitreeB1::_UDPSend, this));
-    impl_->loop_udpRecv_    = std::make_shared<UNITREE_LEGGED_SDK::LoopFunc>("udp_recv", dt_, 3,  boost::bind(&DriverUnitreeB1::_UDPRecv, this));
 
     ip_ = TARGET_IP;
     port_ = TARGET_PORT;
@@ -168,18 +158,13 @@ DriverUnitreeB1::DriverUnitreeB1(std::atomic_bool *st_break_loops,
 }
 
 /**
- * @brief DriverUnitreeB1::~DriverUnitreeB1 stops the loops before the members they use are destroyed.
+ * @brief DriverUnitreeB1::~DriverUnitreeB1 stops the threads before the members they use are destroyed.
  *        This matters only if deinitialize() was not called (e.g. an exception was thrown).
  */
 DriverUnitreeB1::~DriverUnitreeB1()
 {
-    if (current_status_ == STATUS::CONNECTED || current_status_ == STATUS::INITIALIZED)
-    {
-        impl_->loop_control_->shutdown();
-        impl_->loop_echo_state_->shutdown();
-        impl_->loop_udpSend_->shutdown();
-        impl_->loop_udpRecv_->shutdown();
-    }
+    _stop_control_thread();
+    _stop_state_thread();
 }
 
 /**
@@ -269,24 +254,6 @@ std::vector<unsigned long long> DriverUnitreeB1::get_udp_status()
 bool DriverUnitreeB1::get_connection_status()
 {
     return communication_established_;
-}
-
-/**
- * @brief DriverUnitreeB1::_UDPRecv receives data from the UDP communication. This callback method is used by loop_udpRecv_.
- */
-void DriverUnitreeB1::_UDPRecv()
-{
-    impl_->udp_->Recv();
-    _update_udp_status();
-}
-
-/**
- * @brief DriverUnitreeB1::_UDPSend sends data using the UDP communication. This callback method is used by loop_udpSend_.
- */
-void DriverUnitreeB1::_UDPSend()
-{
-    impl_->udp_->Send();
-    _update_udp_status();
 }
 
 /**
@@ -396,9 +363,7 @@ void DriverUnitreeB1::connect()
 {
     if (current_status_ == STATUS::IDLE)
     {
-        impl_->loop_udpSend_->start();
-        impl_->loop_udpRecv_->start();
-        impl_->loop_echo_state_->start();
+        _start_state_thread();
 
         status_msg_ = "connecting...";
         for (int i=0;i<timeout_in_milliseconds_;i++)
@@ -419,9 +384,7 @@ void DriverUnitreeB1::connect()
         {
             current_status_ = STATUS::IDLE;
             status_msg_ = "Connection failed!";
-            impl_->loop_udpSend_->shutdown();
-            impl_->loop_udpRecv_->shutdown();
-            impl_->loop_echo_state_->shutdown();
+            _stop_state_thread();
             _show_status();
             throw std::runtime_error("DriverUnitreeB1::connect. Unestablished connection with the B1 robot at "
                                      + ip_ + ":" + std::to_string(port_) + " after "
@@ -464,12 +427,11 @@ void DriverUnitreeB1::initialize()
                     std::cerr<<"RobotDriverUnitreeB1::initialize. VelocityControl in low-level mode is not available. "<<std::endl;
                     deinitialize();
                 }else { //HIGH LEVEL
-                        status_msg_ = "finishing echo state loop.";
+                        status_msg_ = "finishing state thread.";
                         _show_status();
-                        impl_->loop_echo_state_->shutdown();
-                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                        impl_->loop_control_->start();
-                        status_msg_ = "starting control loop.";
+                        _stop_state_thread();
+                        _start_control_thread();
+                        status_msg_ = "starting control thread.";
                         _show_status();
                     }
                 break;
@@ -499,7 +461,7 @@ void DriverUnitreeB1::initialize()
  */
 void DriverUnitreeB1::deinitialize()
 {
-    // Without a successful connect(), no loop is running to finish the motion. This happens, for instance,
+    // Without a successful connect(), no thread is running to finish the motion. This happens, for instance,
     // when the SAS driver calls deinitialize() after connect() threw, or when deinitialize() is called twice.
     if (current_status_ != STATUS::CONNECTED && current_status_ != STATUS::INITIALIZED)
     {
@@ -511,7 +473,7 @@ void DriverUnitreeB1::deinitialize()
     finish_motion_to_deinitialize_ = true;
     std::cerr<<"Waiting to deinitialize..."<<std::endl;
 
-    // The timeout only triggers if the loop that finishes the motion is no longer running.
+    // The timeout only triggers if the thread that finishes the motion is no longer running.
     const unsigned long long timeout_in_milliseconds = (LIE_DOWN_ROBOT_WHEN_DEINITIALIZE_ ?
                                                         4*lie_down_phase_duration_ : quick_stop_duration_)
                                                        + deinitialize_timeout_margin_;
@@ -520,19 +482,17 @@ void DriverUnitreeB1::deinitialize()
         if (std::chrono::steady_clock::now() > deadline)
         {
             std::cerr<<"DriverUnitreeB1::deinitialize. The robot did not finish the motion after "
-                     <<timeout_in_milliseconds<<" ms. Shutting down the loops anyway."<<std::endl;
+                     <<timeout_in_milliseconds<<" ms. Stopping the threads anyway."<<std::endl;
             break;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     };
 
     std::cerr<<"We are ready to deinitialize!"<<std::endl;
-    impl_->loop_udpSend_->shutdown();
-    impl_->loop_udpRecv_->shutdown();
-    impl_->loop_echo_state_->shutdown();
-    impl_->loop_control_->shutdown();
+    _stop_control_thread();
+    _stop_state_thread();
 
-    status_msg_ = "All loops are shutdown!";
+    status_msg_ = "All threads are stopped!";
     _show_status();
 
     current_status_ = STATUS::DEINITIALIZED;
@@ -946,11 +906,12 @@ unsigned long long DriverUnitreeB1::get_motion_time() const
 
 
 /**
- * @brief DriverUnitreeB1::_robot_control callback method used by the thread control loop.
+ * @brief DriverUnitreeB1::_robot_control updates the robot state and sets the command according to the operation mode.
+ *        It is used by the control thread.
  */
 void DriverUnitreeB1::_robot_control()
 {
-    motiontime_ += 2;//motiontime_++;
+    motiontime_ += motiontime_increment_;
     _update_data_from_robot_state();
     switch (mode_)
     {
@@ -959,12 +920,9 @@ void DriverUnitreeB1::_robot_control()
     case MODE::PositionControl:
         break;
     case MODE::VelocityControl:
-        if (level_ == LEVEL::LOW)
+        // The constructor rejects VelocityControl in low-level mode.
+        if (level_ == LEVEL::HIGH)
         {
-            throw std::runtime_error(std::string("RobotDriverUnitreeB1::_set_driver_mode. VelocityControl in low-level mode is not available. "));
-        }
-        else
-        { //HIGH LEVEL
             if (!finish_motion_to_deinitialize_)
             {
                 double forward_speed;
@@ -1023,7 +981,7 @@ void DriverUnitreeB1::_robot_control()
                 const unsigned long long frozen_time = deinitialize_start_time_;
                 const unsigned long long elapsed_time = motiontime_ - frozen_time;
 
-                // This loop runs every 2 ms with real-time priority, so each phase is reported only once.
+                // This thread runs every 2 ms with real-time priority, so each phase is reported only once.
                 auto enter_phase = [this](const int& phase, const std::string& message)
                 {
                     const bool is_new_phase = (phase != deinitialize_phase_);
@@ -1189,13 +1147,136 @@ void DriverUnitreeB1::_update_data_from_robot_state()
  */
 void DriverUnitreeB1::_robot_update()
 {
-    motiontime_++;
+    motiontime_ += motiontime_increment_;
     _update_data_from_robot_state();
     if (finish_motion_to_deinitialize_)
         the_robot_is_ready_to_deinitialize_ = true;
 }
 
 
+
+
+/**
+ * @brief DriverUnitreeB1::_start_state_thread starts the thread that receives the robot state. This thread
+ *        sends the current command without changing it, so it can not move the robot.
+ */
+void DriverUnitreeB1::_start_state_thread()
+{
+    if (state_thread_ && state_thread_->is_running())
+        return;
+
+    state_thread_ = std::make_unique<marinholab::sas::core::ThreadManager>(
+        "b1_state",
+        dt_,
+        [this](){_state_loop_callback();},
+        thread_priority_,
+        -1);
+    state_thread_->start();
+}
+
+/**
+ * @brief DriverUnitreeB1::_stop_state_thread stops and releases the state thread, if one is running.
+ */
+void DriverUnitreeB1::_stop_state_thread()
+{
+    if (state_thread_)
+    {
+        state_thread_->stop();
+        state_thread_.reset();
+    }
+}
+
+/**
+ * @brief DriverUnitreeB1::_state_loop_callback runs one tick of the state thread: receives the robot state,
+ *        updates the robot data, and sends the current command.
+ */
+void DriverUnitreeB1::_state_loop_callback()
+{
+    try
+    {
+        impl_->udp_->Recv();
+        _robot_update();
+        impl_->udp_->Send();
+        _update_udp_status();
+    }
+    catch (const std::exception& e)
+    {
+        // Nothing can catch an exception thrown from this thread.
+        _report_loop_exception("state", e.what());
+    }
+}
+
+/**
+ * @brief DriverUnitreeB1::_start_control_thread starts the thread that commands the robot.
+ */
+void DriverUnitreeB1::_start_control_thread()
+{
+    if (control_thread_ && control_thread_->is_running())
+        return;
+
+    control_thread_ = std::make_unique<marinholab::sas::core::ThreadManager>(
+        "b1_control",
+        dt_,
+        [this](){_control_loop_callback();},
+        thread_priority_,
+        -1);
+    control_thread_->start();
+}
+
+/**
+ * @brief DriverUnitreeB1::_stop_control_thread stops and releases the control thread, if one is running.
+ *        When this method returns, the control thread no longer commands the robot.
+ */
+void DriverUnitreeB1::_stop_control_thread()
+{
+    if (control_thread_)
+    {
+        control_thread_->stop();
+        control_thread_.reset();
+    }
+}
+
+/**
+ * @brief DriverUnitreeB1::_control_loop_callback runs one tick of the control thread: receives the robot state,
+ *        sets the command according to the operation mode, and sends it. If an exception is thrown, the robot
+ *        is commanded to stop walking.
+ */
+void DriverUnitreeB1::_control_loop_callback()
+{
+    try
+    {
+        impl_->udp_->Recv();
+        _robot_control();
+    }
+    catch (const std::exception& e)
+    {
+        // Nothing can catch an exception thrown from this thread. Thus, the safest action is to stop the robot.
+        _report_loop_exception("control", e.what());
+        try
+        {
+            _command_in_high_level_mode(HIGH_LEVEL_MODE::TARGET_VELOCITY_WALKING, 0, 0, 0);
+        }
+        catch (const std::exception& e_stop)
+        {
+            _report_loop_exception("control", e_stop.what());
+        }
+    }
+    impl_->udp_->Send();
+    _update_udp_status();
+}
+
+/**
+ * @brief DriverUnitreeB1::_report_loop_exception reports the first exception caught in a thread callback.
+ *        The callbacks run every 2 ms, so the following exceptions are not reported.
+ * @param thread_name The name of the thread.
+ * @param what The message of the exception.
+ */
+void DriverUnitreeB1::_report_loop_exception(const std::string &thread_name, const std::string &what)
+{
+    if (!loop_exception_reported_.exchange(true))
+        std::cerr<<"DriverUnitreeB1::_report_loop_exception. Exception in the "<<thread_name
+                 <<" thread: "<<what<<std::endl;
+}
 
 
 /**

@@ -25,6 +25,7 @@
 
 #pragma once
 #include <dqrobotics/DQ.h>
+#include <marinholab/sas/core/sas_thread_manager.hpp>
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -39,6 +40,19 @@
 using namespace DQ_robotics;
 using namespace Eigen;
 
+/**
+ * @brief Driver for the Unitree B1 quadruped, built on the Unitree legged SDK (UDP communication).
+ *
+ * @details Threading model. Each thread runs one complete UDP cycle per tick (receive, update the
+ *          robot state, command, send), so the send and receive steps never run concurrently:
+ *          - state_thread_ (a ThreadManager) receives the robot state and sends the current command
+ *            without changing it. It runs from connect() until a control mode takes over in
+ *            initialize() (or for the whole session in MODE::None).
+ *          - control_thread_ (a ThreadManager) also commands the robot according to the selected MODE.
+ *            It runs from initialize() until deinitialize().
+ *          The robot state and the high-level speed references are guarded by data_mutex_, so the
+ *          getters and setters are safe to call from any thread.
+ */
 class DriverUnitreeB1
 {
 protected:
@@ -146,6 +160,10 @@ private:
     MODE mode_{MODE::None};
 
     float dt_{0.002};
+    // Elapsed time (ms) added to motiontime_ in each tick of the threads
+    const unsigned long long motiontime_increment_ = 2;
+    const marinholab::sas::core::ThreadManager::PRIORITY thread_priority_ =
+        marinholab::sas::core::ThreadManager::PRIORITY::REALTIME;
     std::atomic<unsigned long long> motiontime_{0};
     uint32_t tick_{0}; //real-time from motion controller
 
@@ -234,8 +252,21 @@ private:
 
     void _robot_control();
     void _robot_update();
-    void _UDPRecv();
-    void _UDPSend();
+
+    //-------To handle the threads-----------------
+    std::unique_ptr<marinholab::sas::core::ThreadManager> state_thread_;
+    void _start_state_thread();
+    void _stop_state_thread();
+    void _state_loop_callback();
+
+    std::unique_ptr<marinholab::sas::core::ThreadManager> control_thread_;
+    void _start_control_thread();
+    void _stop_control_thread();
+    void _control_loop_callback();
+
+    // Used only by the threads, to report the first exception caught in their callbacks.
+    std::atomic<bool> loop_exception_reported_{false};
+    void _report_loop_exception(const std::string& thread_name, const std::string& what);
 
     void _update_udp_status();
 
