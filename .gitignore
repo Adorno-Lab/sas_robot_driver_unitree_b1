@@ -1,0 +1,11 @@
+# Qt Creator user files
+*.txt.user
+
+# Build directories (e.g. of the Qt applications in qt/)
+build/
+
+# Editor settings
+.vscode/
+
+# Python bytecode (launch files)
+__pycache__/

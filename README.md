@@ -126,6 +126,38 @@ limb_prefixes: ["sas_b1/b1_1/front_right_leg", "sas_b1/b1_1/front_left_leg",
                 "sas_b1/b1_1/rear_right_leg", "sas_b1/b1_1/rear_left_leg"]
 ```
 
+## Testing with ROS
+
+`qt/legged_client_window` is a Qt application that commands the running driver through the clients of sas_tools
+(`LeggedRobotDriverClient`, and one `RobotDriverClient` per limb), as a controller would. It shows the status, the
+mode, the IMU, and the joint states of every limb, and it has the mode buttons, sliders for the twist, and an
+emergency stop. The limbs are built from `get/info`, so the same window works with other legged robots.
+
+It is not a colcon package. Build it in a terminal in which ROS 2 and the workspace that contains sas_tools are
+sourced (or start Qt Creator from that terminal):
+
+```shell
+cd ~/ros2_ws/src/sas_robot_driver_unitree_b1
+cmake -S qt/legged_client_window -B qt/legged_client_window/build -DCMAKE_PREFIX_PATH="$HOME/Qt/6.8.1/gcc_64;$CMAKE_PREFIX_PATH"
+cmake --build qt/legged_client_window/build
+```
+
+```shell
+./qt/legged_client_window/build/legged_client_window --ros-args -p legged_robot_prefix:=sas_b1/b1_1
+```
+
+| Parameter | Default | Description |
+|---|---|---|
+| `legged_robot_prefix` | `sas_b1/b1_1` | The legged driver, e.g. `sas_b1/b1_2` for the black B1 |
+| `own_driver_limb_prefixes` | `[]` | Limbs with their own driver, e.g. `"['sas_z1/z1_1']"` for the Z1. The mode of the base does not gate them, so each one only accepts targets from the window while its "Allow commands" box is checked |
+| `monitor_only` | `false` | Only read the robot: the command topics are not created, so the window can run next to a controller. The emergency stop still works |
+
+- The twist is sent every 50 ms while the robot accepts it (`WALKING`). The sliders go back to zero whenever it
+  does not, and on every mode request. Their ranges are conservative for testing: `vx` ±0.2 m/s, `vy` ±0.1 m/s,
+  `wz` ±0.2 rad/s.
+- The emergency stop sends the shutdown signal to the legged driver and to every limb with its own driver.
+- Closing the window (or `Ctrl + C`) sends a zero twist.
+
 ## Testing without ROS
 
 `qt/configuration_window` is a Qt application that runs `DriverUnitreeB1` (the driver without ROS) with sliders for
