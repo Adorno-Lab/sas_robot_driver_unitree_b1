@@ -54,12 +54,14 @@ The B1 is a floating base with four legs. Each leg is a standard SAS robot drive
   [#4](https://github.com/Adorno-Lab/sas_robot_driver_unitree_b1/issues/4)).
 - With `mode: "None"`, the driver only reads the state of the robot: only `IDLE` is supported, and nothing is
   commanded.
+- `get/twist` is the twist of the base estimated by the B1 (forward and side velocities, and yaw rate, in the body
+  frame), in every mode. Pose estimators (e.g. an EKF with Vicon) use it as the motion of the base.
 
 ## Topics
 
 | Prefix | Topics |
 |---|---|
-| `sas_b1/b1_1/` (base) | `get/info`, `get/status`, `get/imu`, `set/high_level_mode`, `set/target_twist`, `set/watchdog_trigger`, `set/shutdown` |
+| `sas_b1/b1_1/` (base) | `get/info`, `get/status`, `get/imu`, `get/twist` (measured), `set/high_level_mode`, `set/target_twist`, `set/watchdog_trigger`, `set/shutdown` |
 | `sas_b1/b1_1/<limb>/` | the standard SAS joint topics: `get/joint_states`, `get/joint_positions_min`, `get/joint_positions_max`, `set/target_joint_positions`, `set/shutdown` |
 
 See the [topic standard of sas_tools](https://github.com/Adorno-Lab/sas_tools/tree/new_generation#topic-standard) for the message types,
@@ -86,11 +88,8 @@ cd ~/ros2_ws
 colcon build --packages-up-to sas_robot_driver_unitree_b1
 ```
 
-The shared library of unitree_legged_sdk must be found at runtime, e.g.:
-
-```shell
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/ros2_ws/src/sas_robot_driver_unitree_b1/src/unitree_legged_sdk/lib/cpp/amd64/
-```
+The shared library of unitree_legged_sdk (amd64 or arm64) is installed with the driver, so `LD_LIBRARY_PATH` does
+not need to be changed.
 
 ## Usage
 

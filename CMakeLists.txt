@@ -25,12 +25,15 @@ find_package(marinholab_sas_core REQUIRED)
 ################## NOT ROS2 libraries  ###################
 ##########################################################
 
-message("-- CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
+message(STATUS "CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64.*")
  set(ARCH amd64)
 endif()
 if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "aarch64.*")
  set(ARCH arm64)
+endif()
+if(NOT ARCH)
+ message(FATAL_ERROR "unitree_legged_sdk has no library for ${CMAKE_SYSTEM_PROCESSOR}.")
 endif()
 set(UNITREE_LEGGED_SDK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/unitree_legged_sdk/)
 
@@ -165,6 +168,13 @@ endif()
 install(DIRECTORY
   launch
   DESTINATION share/${PROJECT_NAME}/
+)
+
+# Install the unitree_legged_sdk library next to the driver library, so that the installed
+# node does not depend on LD_LIBRARY_PATH pointing to the source tree.
+install(
+    FILES ${UNITREE_LEGGED_SDK_DIR}/lib/cpp/${ARCH}/libunitree_legged_sdk.so
+    DESTINATION lib
 )
 
 
