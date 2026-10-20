@@ -161,6 +161,13 @@ public:
     DQ get_linear_acceleration() override;
 
     /**
+     * @brief get_measured_twist Returns the twist of the base estimated by the B1 (its high-level state: the forward
+     *        and side velocities, and the yaw rate), in the body frame. Supported in every mode (MODE::NONE too).
+     * @return wz*k_ + E_*(vx*i_ + vy*j_). Zero until the first message of the robot arrives.
+     */
+    DQ get_measured_twist() override;
+
+    /**
      * @brief get_supported_high_level_modes Returns IDLE, STANDING, and WALKING in MODE::VELOCITY_CONTROL, and
      *        IDLE in MODE::NONE.
      */
@@ -168,8 +175,8 @@ public:
 
     /**
      * @brief is_supported In MODE::VELOCITY_CONTROL, returns true for LEGGED_FUNCTIONALITY::TWIST, BASE_HEIGHT,
-     *        and BASE_ORIENTATION, and false for BASE_HEIGHT_WHILE_WALKING. Returns false for every
-     *        functionality in MODE::NONE.
+     *        BASE_ORIENTATION, and MEASURED_TWIST, and false for BASE_HEIGHT_WHILE_WALKING. In MODE::NONE, only
+     *        MEASURED_TWIST is supported (a state reading).
      */
     bool is_supported(const LEGGED_FUNCTIONALITY& functionality) const override;
 

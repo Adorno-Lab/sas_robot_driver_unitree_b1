@@ -191,6 +191,12 @@ DQ RobotDriverUnitreeB1::get_linear_acceleration()
     return impl_->hardware_->get_IMU_accelerometer();
 }
 
+DQ RobotDriverUnitreeB1::get_measured_twist()
+{
+    // angular + E_*linear, in the body frame: wz*k_ and vx*i_ + vy*j_ (high-level state of the B1).
+    return impl_->hardware_->get_high_level_angular_velocity() + E_*impl_->hardware_->get_high_level_linear_velocity();
+}
+
 std::vector<LeggedRobotDriver::HIGH_LEVEL_MODE> RobotDriverUnitreeB1::get_supported_high_level_modes() const
 {
     if (impl_->mode_ == RobotDriverUnitreeB1Configuration::MODE::NONE)
@@ -200,6 +206,9 @@ std::vector<LeggedRobotDriver::HIGH_LEVEL_MODE> RobotDriverUnitreeB1::get_suppor
 
 bool RobotDriverUnitreeB1::is_supported(const LEGGED_FUNCTIONALITY &functionality) const
 {
+    // The measured twist is a state reading: it is available in every mode.
+    if (functionality == LEGGED_FUNCTIONALITY::MEASURED_TWIST)
+        return true;
     if (impl_->mode_ == RobotDriverUnitreeB1Configuration::MODE::NONE)
         return false;
     switch (functionality)
@@ -207,6 +216,7 @@ bool RobotDriverUnitreeB1::is_supported(const LEGGED_FUNCTIONALITY &functionalit
     case LEGGED_FUNCTIONALITY::TWIST:
     case LEGGED_FUNCTIONALITY::BASE_HEIGHT:
     case LEGGED_FUNCTIONALITY::BASE_ORIENTATION:
+    case LEGGED_FUNCTIONALITY::MEASURED_TWIST:
         return true;
     case LEGGED_FUNCTIONALITY::BASE_HEIGHT_WHILE_WALKING:
         return false;  // The B1 only changes its height while standing (FORCE_STAND).
