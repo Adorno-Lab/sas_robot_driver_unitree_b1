@@ -64,6 +64,7 @@ const VectorXd kLegUpperLimits = (VectorXd(3) <<  0.75,  3.5, -0.6).finished();
 const Eigen::Vector3d kBaseOrientationLowerLimits(-0.3, -0.3, -0.6);
 const Eigen::Vector3d kBaseOrientationUpperLimits( 0.3,  0.3,  0.6);
 const double kNominalBaseHeight = 0.58;
+const double kMaxBaseHeightDelta = 0.16;
 
 }
 
@@ -216,6 +217,11 @@ bool RobotDriverUnitreeB1::is_supported(const LEGGED_FUNCTIONALITY &functionalit
 std::tuple<Eigen::Vector3d, Eigen::Vector3d> RobotDriverUnitreeB1::get_base_orientation_limits() const
 {
     return {kBaseOrientationLowerLimits, kBaseOrientationUpperLimits};
+}
+
+std::tuple<double, double, double> RobotDriverUnitreeB1::get_base_height_limits() const
+{
+    return {kNominalBaseHeight - kMaxBaseHeightDelta, kNominalBaseHeight + kMaxBaseHeightDelta, kNominalBaseHeight};
 }
 
 std::vector<LeggedRobotDriver::LimbEntry> RobotDriverUnitreeB1::get_limbs() const

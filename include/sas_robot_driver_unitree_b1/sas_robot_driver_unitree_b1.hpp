@@ -180,6 +180,12 @@ public:
     std::tuple<Eigen::Vector3d, Eigen::Vector3d> get_base_orientation_limits() const override;
 
     /**
+     * @brief get_base_height_limits Returns the range of the body height of the B1, [0.42, 0.74] m, and its
+     *        nominal height, 0.58 m (unitree_legged_sdk/comm.h: the nominal height +- 0.16 m).
+     */
+    std::tuple<double, double, double> get_base_height_limits() const override;
+
+    /**
      * @brief get_limbs Returns front_right_leg, front_left_leg, rear_right_leg, and rear_left_leg, in this order.
      */
     std::vector<LimbEntry> get_limbs() const override;
