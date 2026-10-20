@@ -115,6 +115,9 @@ To stop the robot, press `Ctrl + C`. The driver stops the robot (a quick stop, o
 | `real_b1z1_white_robot_launch.py`, `real_b1z1_black_robot_launch.py` | the B1 and its Z1 arm (requires `sas_robot_driver_unitree_z1`) | the same nodes |
 
 The node name and namespace in the launch file (e.g. `b1_1` in `sas_b1`) define the topic prefix, `sas_b1/b1_1`.
+The launch files remap the `set/shutdown` of the base to `/sas/set/shutdown`, the topic of the emergency stop of the
+lab, as the launch files of the Z1 driver: one message on it stops every driver on the same `ROS_DOMAIN_ID`. The
+`set/shutdown` of each leg is not remapped.
 
 | Node parameter | Default | Description |
 |---|---|---|
