@@ -1,64 +1,36 @@
-FROM ubuntu:noble
+FROM murilomarinho/sas:jazzy
 ARG ROS_DOMAIN_ID=1
-ENV ROS_DOMAIN_ID=$ROS_DOMAIN_ID  
+ENV ROS_DOMAIN_ID=$ROS_DOMAIN_ID
 SHELL ["/bin/bash", "-c"]
 ENV BASH_ENV="/etc/bash_env"
 
-# Install dependencies
-RUN apt-get update && apt-get install -y net-tools iputils-ping \
-git nss-updatedb locate curl libpci3 vim nano terminator \
-cmake extra-cmake-modules g++ libeigen3-dev fakeroot python3-pip \
-libzmq3-dev libboost-all-dev python3-pybind11 software-properties-common 
+# The base image already has ROS 2 Jazzy, the SAS packages, DQ Robotics, and marinholab::sas::core.
 
-# Install ROS2 as instructed in https://ros2-tutorial.readthedocs.io/en/latest/installation.html
-RUN add-apt-repository universe
-RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
-RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
-RUN apt update && apt upgrade -y
-RUN apt-get update && apt-get install -y ros-jazzy-desktop ros-dev-tools
-# ros-jazzy-desktop
+# Update the SAS packages of the base image. Only those already installed. The debug symbols are removed first,
+# as they pin the old versions.
+RUN apt-get update && \
+    apt-get purge -y 'ros-jazzy-sas-*-dbgsym' && \
+    apt-get install -y --only-upgrade 'ros-jazzy-sas-*' && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-
-
-# Install DQ Robotics
-RUN add-apt-repository ppa:dqrobotics-dev/development 
-RUN apt-get update && apt-get install libdqrobotics libdqrobotics-interface-json11
-RUN python3 -m pip install dqrobotics --pre --break-system-packages
-RUN apt-get update && apt-get install -y libdqrobotics-interface-coppeliasim libdqrobotics-interface-coppeliasim-zmq
-
-# Install qpOASES
-RUN mkdir -p ~/utils
-RUN cd ~/utils && git clone https://github.com/coin-or/qpOASES.git
-RUN cd ~/utils/qpOASES && sed -i -e 's/option(BUILD_SHARED_LIBS "If ON, build shared library instead of static" OFF)/option(BUILD_SHARED_LIBS "If ON, build shared library instead of static" ON)/g' CMakeLists.txt
-RUN cd ~/utils/qpOASES/ && mkdir -p build
-RUN cd ~/utils/qpOASES/build  && cmake .. && make && make install
-
-# Install DQ Robotics interface with qpOASES
-RUN apt-get update && apt-get install -y libdqrobotics-interface-qpoases
-
-
-# Suggested instructions to clone SAS
+# Clone sas_tools and the driver
 RUN mkdir -p ~/ros2_ws/src
-RUN cd ~/ros2_ws/src && git clone --recurse-submodules -b jazzy https://github.com/SmartArmStack/smart_arm_stack_ROS2.git sas
-RUN cd ~/ros2_ws/src/sas/ && rm -r sas_robot_driver_denso 
-RUN cd ~/ros2_ws/src/sas/ && rm -r sas_robot_driver_kuka
-RUN cd ~/ros2_ws/src/sas/ && rm -r sas_robot_driver_ur
+RUN cd ~/ros2_ws/src && \
+    git clone https://github.com/Adorno-Lab/sas_tools.git && \
+    git clone -b new_generation https://github.com/Adorno-Lab/sas_robot_driver_unitree_b1 --recursive
 
-# Clone the sas driver
-RUN cd ~/ros2_ws/src && git clone https://github.com/Adorno-Lab/sas_robot_driver_unitree_b1 --recursive
-
+# Build the driver. sas_legged_client_window (sas_tools) is not built, as it needs Qt.
+RUN source /opt/ros/jazzy/setup.bash && \
+    cd ~/ros2_ws && \
+    colcon build --packages-up-to sas_robot_driver_unitree_b1
 
 # ALIASES
-RUN echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
-RUN echo "# Source the ROS2 overlay, as instructed in https://github.com/SmartArmStack/smart_arm_stack_ROS2" >> ~/.bashrc
-RUN echo "alias cdros2='cd ~/ros2_ws/' " >> ~/.bashrc 
-RUN echo "alias buildros2='cdros2 && colcon build && source install/setup.bash' " >> ~/.bashrc 
-# ROS DOMAIN SETUP
-RUN echo "export ROS_DOMAIN_ID=$ROS_DOMAIN_ID" >> ~/.bashrc 
-RUN echo "alias launch_ROS2_drivers='cdros2 && source install/setup.bash && ros2 launch sas_robot_driver_unitree_b1 real_b1_robot_launch.py' " >> ~/.bashrc 
-
-RUN source ~/.bashrc
-
-# To prevent compilation erros with Pybind11
-RUN ln -s /usr/include/eigen3/Eigen /usr/include/Eigen
-RUN ldconfig
+RUN echo "source /opt/ros/jazzy/setup.bash" >> /etc/bash_env
+RUN echo "source ~/ros2_ws/install/setup.bash" >> /etc/bash_env
+RUN echo "export ROS_DOMAIN_ID=$ROS_DOMAIN_ID" >> /etc/bash_env
+RUN echo "alias cdros2='cd ~/ros2_ws/' " >> /etc/bash_env
+RUN echo "alias buildros2='cdros2 && colcon build --packages-up-to sas_robot_driver_unitree_b1 && source install/setup.bash' " >> /etc/bash_env
+RUN echo "alias launch_ROS2_drivers_white='ros2 launch sas_robot_driver_unitree_b1 real_b1_white_robot_launch.py' " >> /etc/bash_env
+RUN echo "alias launch_ROS2_drivers_black='ros2 launch sas_robot_driver_unitree_b1 real_b1_black_robot_launch.py' " >> /etc/bash_env
+RUN echo "source /etc/bash_env" >> ~/.bashrc

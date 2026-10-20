@@ -165,9 +165,8 @@ cmake --build qt/configuration_window/build
 
 ## Docker
 
-> [!WARNING]
-> The Docker image has not been updated for this version of the driver yet (it does not install sas_tools or
-> `libmarinholab-sas-core`).
+The image is based on `murilomarinho/sas:jazzy`, and builds the branch `new_generation` of this repository from
+GitHub (with sas_tools).
 
 #### Prerequisites:
 - Docker with sudo permissions.
@@ -192,7 +191,7 @@ sh build_sas_rd_unitree_b1_docker.sh 1
 ```shell
 sh start_sas_rd_unitree_b1_docker.sh
 ```
-4. Build the ROS2 packages
+4. The packages are built in the image. To build them again
 ```shell
 buildros2
 ```
@@ -201,8 +200,9 @@ buildros2
 > The robot could move with the next command. Be ready to perform an emergency stop!
 
 ```shell
-launch_ROS2_drivers
+launch_ROS2_drivers_white
 ```
+or `launch_ROS2_drivers_black`.
 
 ![start_ROS2_drivers](https://github.com/user-attachments/assets/c30a7867-d738-4423-970a-9a18e476b080)
 
