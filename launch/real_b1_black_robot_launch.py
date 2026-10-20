@@ -32,7 +32,9 @@ def generate_launch_description():
                 "ROBOT_IP": "192.168.8.226", #192.168.123.220
                 "ROBOT_PORT": 8082,
                 "FORCE_STAND_MODE_WHEN_HIGH_LEVEL_VELOCITIES_ARE_ZERO": True, # In the black robot, this is required to stop the robot when the velociites are zero.
-            }]
+            }],
+            # The emergency stop of the lab publishes on /sas/set/shutdown, as the launch files of the Z1 driver.
+            remappings=[('~/set/shutdown', '/sas/set/shutdown')],
         ),
 
     ])

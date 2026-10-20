@@ -29,7 +29,9 @@ def generate_launch_description():
                 "LIE_DOWN_ROBOT_WHEN_DEINITIALIZE": False,
                 "ROBOT_IP": "192.168.8.170", #192.168.123.220
                 "ROBOT_PORT": 8082,
-            }]
+            }],
+            # The emergency stop of the lab publishes on /sas/set/shutdown, as the launch files of the Z1 driver.
+            remappings=[('~/set/shutdown', '/sas/set/shutdown')],
         ),
 
     ])
